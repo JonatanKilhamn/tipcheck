@@ -20,6 +20,7 @@ prop_TipNothingStrange circ =
        Q.monitor (whenFail' (writeCircuit inputFailedFile circ))
        Q.assert (exit res == ExitSuccess)
        Q.assert (length (safes res) == length (bads circ))
+       Q.assert (length (lives res) == length (justs circ))
 
 prop_TipCombined circ =
   not (null (bads circ) && null (justs circ)) ==>
@@ -29,7 +30,7 @@ prop_TipCombined circ =
 
          -- check all safety properties
          sequence_
-           [ do res' <- Q.run (tip circ{ bads = [bads circ !! p] } ["-alg=bmc", "-k=100"])
+           [ do res' <- Q.run (tip circ{ bads = [bads circ !! p], justs = [] } ["-alg=bmc", "-k=100"])
                 Q.assert (exit res' == ExitSuccess)
                 Q.assert (safes res' == [(0,False) | not proved])
            | p <- [0..length (bads circ)-1]
@@ -38,7 +39,7 @@ prop_TipCombined circ =
 
          -- check all liveness properties
          sequence_
-           [ do res' <- Q.run (tip circ{ justs = [justs circ !! p] } ["-alg=bmc", "-k=100"])
+           [ do res' <- Q.run (tip circ{ justs = [justs circ !! p], bads = [] } ["-alg=bmc", "-k=100"])
                 Q.assert (exit res' == ExitSuccess)
                 Q.assert (lives res' == [(0,False) | not proved])
            | p <- [0..length (justs circ)-1]
@@ -60,7 +61,7 @@ data TipResult
 tip :: Circuit -> [String] -> IO TipResult
 tip circ args =
   do tryMany (writeCircuit inputFile circ)
-     ret <- system (unwords ([ "perl -e 'alarm shift @ARGV; exec @ARGV' 2" -- timeout X seconds (for now)
+     ret <- system (unwords ([ "" -- "perl -e 'alarm shift @ARGV; exec @ARGV' 4" -- timeout X seconds
                              , tipExe
                              , inputFile
                              , resultFile ]
