@@ -16,7 +16,13 @@ data Ref
   = Bool Bool
   | Pos Name
   | Neg Name
- deriving (Show, Eq)
+ deriving ( Eq )
+
+instance Show Ref where
+  show (Bool False) = "0"
+  show (Bool True)  = "1"
+  show (Pos x)      = x
+  show (Neg x)      = "~" ++ x
 
 data Circuit
   = Circuit
@@ -29,7 +35,36 @@ data Circuit
   , justs   :: [[Ref]]
   , gates   :: [(Name,Ref,Ref)]
   }
- deriving ( Show )
+
+instance Show Circuit where
+  show circ = unlines $
+    [ "INPUTS " ++ commas (inputs circ) ++ ";"
+    , "FLOPS " ++ commas (flops circ) ++ ";"
+    , "GATES"
+    ] ++
+    [ "  " ++ x ++ " = " ++ show y ++ " & " ++ show z ++ ";"
+    | (x,y,z) <- gates circ
+    ] ++
+    [ "FLOPDEFS"
+    | not (null (flops circ))
+    ] ++
+    concat
+    [ [ "  init(" ++ x ++ ") = " ++ inits ++ ";"
+      , "  next(" ++ x ++ ") = " ++ show next ++ ";"
+      ]
+    | (x,(next,init)) <- flops circ `zip` flops' circ
+    , let inits = case init of
+                    Nothing    -> "X"
+                    Just False -> "0"
+                    Just True  -> "1"
+    ] ++
+    [ "ASSUME " ++ commas (map show (constrs circ)) ++ ";"
+    , "BADS " ++ commas (map show (bads circ)) ++ ";"
+    , "FAIRS " ++ commas (map show (fairs circ)) ++ ";"
+    , "JUSTIFY " ++ concat (intersperse " " [ "{" ++ commas (map show js) ++ "}" | js <- justs circ ]) ++ ";"
+    ]
+   where
+    commas = concat . intersperse ", " 
 
 --------------------------------------------------------------------------------
 
