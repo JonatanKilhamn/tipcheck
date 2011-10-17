@@ -17,33 +17,40 @@ inputFailedFile = "input_failed.aig"
 prop_TipNothingStrange circ =
   Q.monadicIO $
     do res <- Q.run (tip circ [])
-       Q.monitor (whenFail' (writeCircuit inputFailedFile circ))
+       Q.monitor (whenFail (writeCircuit inputFailedFile circ))
        Q.assert (exit res == ExitSuccess)
        Q.assert (length (safes res) == length (bads circ))
        Q.assert (length (lives res) == length (justs circ))
 
-prop_TipCombined circ =
+prop_TipSafe = mkProp_TipWith True  ["-rip-bmc=1"]
+prop_TipLive = mkProp_TipWith True  ["-rip-bmc=2", "-td"]
+prop_TipBmc  = mkProp_TipWith False ["-alg=bmc", "-k=100"]
+
+mkProp_TipWith complete args circ =
   not (null (bads circ) && null (justs circ)) ==>
     Q.monadicIO $
-      do res <- Q.run (tip circ [])
-         Q.monitor (whenFail' (writeCircuit inputFailedFile circ))
+      do res <- Q.run (tip circ args)
+         Q.monitor (whenFail (writeCircuit inputFailedFile circ))
+         Q.assert (exit res == ExitSuccess)
 
          -- check all safety properties
          sequence_
            [ do res' <- Q.run (tip circ{ bads = [bads circ !! p], justs = [] } ["-alg=bmc", "-k=100"])
                 Q.assert (exit res' == ExitSuccess)
-                Q.assert (safes res' == [(0,False) | not proved])
+                Q.assert (not complete || not (null proved))
+                Q.assert (null proved || safes res' == [(0,False) | not (head proved)])
            | p <- [0..length (bads circ)-1]
-           , let proved = head [ proved | (p',proved) <- safes res, p == p' ]
+           , let proved = [ proved | (p',proved) <- safes res, p == p' ]
            ]
 
          -- check all liveness properties
          sequence_
            [ do res' <- Q.run (tip circ{ justs = [justs circ !! p], bads = [] } ["-alg=bmc", "-k=100"])
                 Q.assert (exit res' == ExitSuccess)
-                Q.assert (lives res' == [(0,False) | not proved])
+                Q.assert (not complete || not (null proved))
+                Q.assert (null proved || lives res' == [(0,False) | not (head proved)])
            | p <- [0..length (justs circ)-1]
-           , let proved = head [ proved | (p',proved) <- lives res, p == p' ]
+           , let proved = [ proved | (p',proved) <- lives res, p == p' ]
            ]
 
 -- template Haskell magic
