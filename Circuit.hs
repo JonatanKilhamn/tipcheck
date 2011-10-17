@@ -54,7 +54,7 @@ instance Show Circuit where
       ]
     | (x,(next,init)) <- flops circ `zip` flops' circ
     , let inits = case init of
-                    Nothing    -> "X"
+                    Nothing    -> "?"
                     Just False -> "0"
                     Just True  -> "1"
     ] ++
@@ -223,7 +223,16 @@ instance Arbitrary Circuit where
     removeConstrs circ =
       [ circ{ constrs = constrs circ \\ [x] }
       | x <- constrs circ
-      ] 
+      ] ++
+      [ circ{ constrs = constrs circ \\ [x]
+            , gates   = gates circ ++ impls
+            , bads    = bads'
+            }
+      | x <- constrs circ
+      , let news  = take (length (bads circ)) ([ "Y" ++ show i | i <- [1..] ] \\ [ x | (x,_,_) <- gates circ ])
+            bads' = [ Neg y | y <- news ]
+            impls = [ (y,x,neg b) | (y,b) <- news `zip` bads circ ]
+      ]
 
     removeBads circ =
       [ circ{ bads = bads circ \\ [x] }
@@ -233,7 +242,12 @@ instance Arbitrary Circuit where
     removeFairs circ =
       [ circ{ fairs = fairs circ \\ [x] }
       | x <- fairs circ
-      ] 
+      ] ++
+      [ circ{ fairs = fairs circ \\ [x]
+            , justs = [ x:xs | xs <- justs circ ]
+            }
+      | x <- fairs circ
+      ]
 
     removeJusts circ =
       [ circ{ justs = justs circ \\ [xs] }
@@ -245,6 +259,15 @@ instance Arbitrary Circuit where
             }
       | i <- [0..length (justs circ)-1]
       , x <- justs circ !! i
+      ] ++
+      [ circ{ justs = justs circ \\ [[x]]
+            , bads  = x : bads circ
+            }
+      | xs <- justs circ
+      , length xs <= 1
+      , let x = case xs of
+                  []  -> tt
+                  [x] -> x
       ]
 
     removeInputsFlops circ =
