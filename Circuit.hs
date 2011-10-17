@@ -260,7 +260,7 @@ instance Arbitrary Circuit where
       | i <- [0..length (justs circ)-1]
       , x <- justs circ !! i
       ] ++
-      [ circ{ justs = justs circ \\ [[x]]
+      [ circ{ justs = justs circ \\ [xs]
             , bads  = x : bads circ
             }
       | xs <- justs circ
@@ -274,6 +274,12 @@ instance Arbitrary Circuit where
       [ replace x b circ
       | x <- inputs circ ++ flops circ
       , b <- [ ff, tt ]
+      ] ++
+      [ replace x y' circ
+      | x <- inputs circ ++ flops circ
+      , y <- inputs circ ++ flops circ
+      , y < x
+      , y' <- [Pos y, Neg y]
       ]
 
     removeManyGates circ =
