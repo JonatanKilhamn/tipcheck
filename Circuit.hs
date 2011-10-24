@@ -124,7 +124,8 @@ writeCircuit file circ =
     a1 = max a b
     b1 = min a b
 
-    bin n | n < 128   = [chr n]
+    bin n | n < 0     = error "negative argument to bin"
+          | n < 128   = [chr n]
           | otherwise = chr (128 + (n `mod` 128)) : bin (n `div` 128)
 
   -- representation
@@ -174,8 +175,8 @@ arbCircuit numInps numFlops numGates (numConstrs,numBads,numFairs,numJusts) =
        , gates   = gates_
        }
  where
-  inpNames  = [ "I" ++ show i | i <- [1..numInps] ]
-  flopNames = [ "R" ++ show i | i <- [1..numFlops] ]
+  inpNames  = [ "i" ++ show i | i <- [1..numInps] ]
+  flopNames = [ "r" ++ show i | i <- [1..numFlops] ]
   pts0      = [ Pos x | x <- inpNames ++ flopNames ] ++ [ff]
   
   point pts = do p <- frequency (freqs `zip` map return (reverse pts))
@@ -188,12 +189,20 @@ arbCircuit numInps numFlops numGates (numConstrs,numBads,numFairs,numJusts) =
     do return (pts,[])
   
   arbGates i n pts =
-    do x <- point pts
-       y <- point pts
-       (pts',gs) <- arbGates (i+1) (n-1) (Pos z : pts)
-       return (pts',(z,x,y):gs)
+    frequency
+    [ (3, do x <- point pts
+             y <- point pts
+             (pts',gs) <- arbGates (i+1) (n-1) (Pos z : pts)
+             return (pts',(z,x,y):gs))
+    , (1, do x <- point pts
+             y <- point pts
+             (pts',gs) <- arbGates (i+1) (n-1) (Pos z : Pos a : Pos b : pts)
+             return (pts',(a,neg x,y):(b,x,neg y):(z,Neg a,Neg b):gs))
+    ]
    where
-    z = "X" ++ show i
+    z = "x" ++ show i
+    a = "xa" ++ show i
+    b = "xb" ++ show i
 
 instance Arbitrary Circuit where
   arbitrary =
@@ -211,13 +220,12 @@ instance Arbitrary Circuit where
 
   shrink circ =
        removeConstrs circ
-    ++ removeBads circ
     ++ removeFairs circ
     ++ removeJusts circ
-    ++ removeInputsFlops circ
+    ++ removeBads circ
     ++ removeManyGates circ
+    ++ removeInputsFlops circ
     ++ removeGates circ
-    ++ replaceFlopsByInputs circ
     ++ initializeFlops circ
    where
     removeConstrs circ =
@@ -229,7 +237,7 @@ instance Arbitrary Circuit where
             , bads    = bads'
             }
       | x <- constrs circ
-      , let news  = take (length (bads circ)) ([ "Y" ++ show i | i <- [1..] ] \\ [ x | (x,_,_) <- gates circ ])
+      , let news  = take (length (bads circ)) ([ "y" ++ show i | i <- [1..] ] \\ [ x | (x,_,_) <- gates circ ])
             bads' = [ Neg y | y <- news ]
             impls = [ (y,x,neg b) | (y,b) <- news `zip` bads circ ]
       ]
@@ -277,8 +285,7 @@ instance Arbitrary Circuit where
       ] ++
       [ replace x y' circ
       | x <- inputs circ ++ flops circ
-      , y <- inputs circ ++ flops circ
-      , y < x
+      , y <- takeWhile (/=x) (inputs circ ++ flops circ)
       , y' <- [Pos y, Neg y]
       ]
 
@@ -289,31 +296,32 @@ instance Arbitrary Circuit where
 
             reps []     = id
             reps (x:xs) = replace x ff . reps xs
+      , _:_:_ <- [gones]
       ]
      where
       shrinkList []  = []
       shrinkList [x] = [[]]
       shrinkList xs  = [ as, bs ]
-                    ++ [ as ++ bs' | bs' <- shrinkList bs ]
-                    ++ [ as' ++ bs | as' <- shrinkList as ]
+                    ++ ( [ as ++ bs' | bs' <- shrinkList bs ]
+                   `ilv` [ as' ++ bs | as' <- shrinkList as ]
+                       )
        where
-        k = length xs `div` 2
+        k  = length xs `div` 2
         as = take k xs
         bs = drop k xs
+
+        []     `ilv` ys = ys
+        (x:xs) `ilv` ys = x : (ys `ilv` xs)
 
     removeGates circ =
       [ replace x c circ
       | (x,a,b) <- gates circ
-      , c <- [ a, b ]
-      ]
-
-    replaceFlopsByInputs circ =
-      [ circ
-        { inputs = inputs circ ++ [x]
-        , flops  = flops circ \\ [x]
-        , flops' = [ flp | (y,flp) <- flops circ `zip` flops' circ, x /= y ]
-        }
-      | x <- flops circ
+      , let ys = [a,b,ff]
+              ++ map Pos ( inputs circ
+                        ++ flops circ
+                        ++ takeWhile (/=x) [ y | (y,_,_) <- gates circ ]
+                         )
+      , c <- nub (ys ++ map neg ys)
       ]
 
     initializeFlops circ =
