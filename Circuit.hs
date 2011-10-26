@@ -287,6 +287,12 @@ instance Arbitrary Circuit where
       | x <- inputs circ ++ flops circ
       , y <- takeWhile (/=x) (inputs circ ++ flops circ)
       , y' <- [Pos y, Neg y]
+      ] ++
+      [ circ{ inputs = x : inputs circ
+            , flops  = flops circ \\ [x]
+            , flops' = [ w | (y,w) <- flops circ `zip` flops' circ, y /= x ]
+            }
+      | x <- flops circ
       ]
 
     removeManyGates circ =
