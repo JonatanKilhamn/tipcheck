@@ -12,6 +12,7 @@ import System
 
 --------------------------------------------------------------------------------
 
+inputFailedFile :: FilePath
 inputFailedFile = "input_failed.aig"
 
 prop_TipNothingStrange circ =
@@ -35,7 +36,7 @@ mkProp_TipWith complete args circ =
 
          -- check all safety properties
          sequence_
-           [ do res' <- Q.run (tip circ{ bads = [bads circ !! p], justs = [] } ["-alg=bmc", "-k=100"])
+           [ do res' <- Q.run (tip circ{ bads = [bads circ !! p], justs = [] } ["-alg=bmc", "-k=100", "-td=-1"])
                 Q.assert (exit res' == ExitSuccess)
                 Q.assert (not complete || not (null proved))
                 Q.assert (null proved || safes res' == [(0,False) | not (head proved)])
@@ -45,7 +46,7 @@ mkProp_TipWith complete args circ =
 
          -- check all liveness properties
          sequence_
-           [ do res' <- Q.run (tip circ{ justs = [justs circ !! p], bads = [] } ["-alg=bmc", "-k=100"])
+           [ do res' <- Q.run (tip circ{ justs = [justs circ !! p], bads = [] } ["-alg=bmc", "-k=100", "-td=-1"])
                 Q.assert (exit res' == ExitSuccess)
                 Q.assert (not complete || not (null proved))
                 Q.assert (null proved || lives res' == [(0,False) | not (head proved)])
