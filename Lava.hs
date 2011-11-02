@@ -130,8 +130,7 @@ circuit m = circ
  
   circ = Circuit
     { inputs  = [ n | (n, Input) <- gs ]
-    , flops   = [ n | (n, Flop _ _) <- gs ]
-    , flops'  = [ (x, init) | (_, Flop init x) <- gs ]
+    , flops   = [ (n,(init,x)) | (n, Flop init x) <- gs ]
     , gates   = [ (n, x, y) | (n, And x y) <- gs ]
     , constrs = always     props
     , bads    = nevers     props

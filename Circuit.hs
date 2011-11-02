@@ -27,8 +27,7 @@ instance Show Ref where
 data Circuit
   = Circuit
   { inputs  :: [Name]
-  , flops   :: [Name]
-  , flops'  :: [(Ref, Maybe Bool)]
+  , flops   :: [(Name,(Maybe Bool, Ref))]
   , constrs :: [Ref]
   , bads    :: [Ref]
   , fairs   :: [Ref]
@@ -39,8 +38,10 @@ data Circuit
 instance Show Circuit where
   show circ = unlines $
     [ "INPUTS " ++ commas (inputs circ) ++ ";"
-    , "FLOPS " ++ commas (flops circ) ++ ";"
-    , "GATES"
+    , "FLOPS " ++ commas (map fst (flops circ)) ++ ";"
+    ] ++
+    [ "GATES"
+    | not (null (gates circ))
     ] ++
     [ "  " ++ x ++ " = " ++ show y ++ " & " ++ show z ++ ";"
     | (x,y,z) <- gates circ
@@ -48,11 +49,8 @@ instance Show Circuit where
     [ "FLOPDEFS"
     | not (null (flops circ))
     ] ++
-    concat
-    [ [ "  init(" ++ x ++ ") = " ++ inits ++ ";"
-      , "  next(" ++ x ++ ") = " ++ show next ++ ";"
-      ]
-    | (x,(next,init)) <- flops circ `zip` flops' circ
+    [ "  " ++ x ++ " := (" ++ inits ++ ") " ++ show next ++ ";"
+    | (x,(init,next)) <- flops circ
     , let inits = case init of
                     Nothing    -> "?"
                     Just False -> "0"
@@ -61,7 +59,7 @@ instance Show Circuit where
     [ "ASSUME " ++ commas (map show (constrs circ)) ++ ";"
     , "BADS " ++ commas (map show (bads circ)) ++ ";"
     , "FAIRS " ++ commas (map show (fairs circ)) ++ ";"
-    , "JUSTIFY " ++ concat (intersperse " " [ "{" ++ commas (map show js) ++ "}" | js <- justs circ ]) ++ ";"
+    , "JUSTIFY " ++ commas [ "{" ++ commas (map show js) ++ "}" | js <- justs circ ] ++ ";"
     ]
    where
     commas = concat . intersperse ", " 
@@ -89,7 +87,7 @@ writeCircuit file circ =
   table =
     M.fromList $
     ( inputs circ
-   ++ flops circ
+   ++ map fst (flops circ)
    ++ [ x | (x,_,_) <- gates circ ]
     ) `zip` [2 :: Int,4..]
  
@@ -137,7 +135,7 @@ writeCircuit file circ =
           case mi of
             Nothing -> show (ref (Pos x))
             Just b  -> show (ref (Bool b))
-      | (x,(x',mi)) <- flops circ `zip` flops' circ
+      | (x,(mi,x')) <- flops circ
       ]
       -- bads, constrs, justs, fairs
    ++ [ show (ref x) | x <- bads circ ]
@@ -155,7 +153,7 @@ arbCircuit :: Int -> Int -> Int -> (Int,Int,Int,Int) -> Gen Circuit
 arbCircuit numInps numFlops numGates (numConstrs,numBads,numFairs,numJusts) =
   do (pts,gates_) <- arbGates 1 numGates pts0
      
-     flops_   <- sequence [ liftM2 (,) (point pts) arbitrary | i <- [1..numFlops] ]
+     flops_   <- sequence [ liftM2 (,) arbitrary (point pts) | i <- [1..numFlops] ]
      constrs_ <- sequence [ point pts | i <- [1..numConstrs] ]
      bads_    <- sequence [ point pts | i <- [1..numBads] ]
      fairs_   <- sequence [ point pts | i <- [1..numFairs] ]
@@ -166,8 +164,7 @@ arbCircuit numInps numFlops numGates (numConstrs,numBads,numFairs,numJusts) =
 
      return Circuit
        { inputs  = inpNames
-       , flops   = flopNames
-       , flops'  = flops_
+       , flops   = flopNames `zip` flops_
        , constrs = constrs_
        , bads    = bads_
        , fairs   = fairs_
@@ -280,19 +277,18 @@ instance Arbitrary Circuit where
 
     removeInputsFlops circ =
       [ replace x b circ
-      | x <- inputs circ ++ flops circ
+      | x <- inputs circ ++ map fst (flops circ)
       , b <- [ ff, tt ]
       ] ++
       [ replace x y' circ
-      | x <- inputs circ ++ flops circ
-      , y <- takeWhile (/=x) (inputs circ ++ flops circ)
+      | x <- inputs circ ++ map fst (flops circ)
+      , y <- takeWhile (/=x) (inputs circ ++ map fst (flops circ))
       , y' <- [Pos y, Neg y]
       ] ++
       [ circ{ inputs = x : inputs circ
-            , flops  = flops circ \\ [x]
-            , flops' = [ w | (y,w) <- flops circ `zip` flops' circ, y /= x ]
+            , flops  = [ (y,w) | (y,w) <- flops circ, y /= x ]
             }
-      | x <- flops circ
+      | (x,_) <- flops circ
       ]
 
     removeManyGates circ =
@@ -324,7 +320,7 @@ instance Arbitrary Circuit where
       | (x,a,b) <- gates circ
       , let ys = [a,b,ff]
               ++ map Pos ( inputs circ
-                        ++ flops circ
+                        ++ map fst (flops circ)
                         ++ takeWhile (/=x) [ y | (y,_,_) <- gates circ ]
                          )
       , c <- nub (ys ++ map neg ys)
@@ -332,19 +328,18 @@ instance Arbitrary Circuit where
 
     initializeFlops circ =
       [ circ
-        { flops' = take i (flops' circ)
-                ++ [ (y,Just b) ]
-                ++ drop (i+1) (flops' circ)
+        { flops = take i (flops circ)
+               ++ [ (x,(Just b,y)) ]
+               ++ drop (i+1) (flops circ)
         }
-      | ((y,Nothing),i) <- flops' circ `zip` [0..]
+      | ((x,(Nothing,y)),i) <- flops circ `zip` [0..]
       , b <- [False,True]
       ]
 
     replace x c circ =
       Circuit
       { inputs  = inputs circ \\ [x]
-      , flops   = flops circ  \\ [x]
-      , flops'  = [ (rep y',init) | (y,(y',init)) <- flops circ `zip` flops' circ, x /= y ]
+      , flops   = [ (y,(init,rep y')) | (y,(init,y')) <- flops circ, x /= y ]
       , constrs = map rep (constrs circ)
       , bads    = map rep (bads circ)
       , fairs   = map rep (fairs circ)
