@@ -355,4 +355,57 @@ instance Arbitrary Circuit where
       rep a                = a
 
 --------------------------------------------------------------------------------
+-- circuit modifiers
+
+data Yes = Yes
+data No  = No
+
+class Choice c where
+  make   :: c
+  choice :: c -> a -> a -> a
+
+instance Choice Yes where
+  make = Yes
+  choice _ yes no = yes
+  
+instance Choice No where
+  make = No
+  choice _ yes no = no
+
+makeChoice :: Choice c => Gen c
+makeChoice = return make
+
+data ModCircuit constrs safes fairs lives
+  = Mod (constrs,safes,fairs,lives) Circuit
+
+instance Show (ModCircuit constrs safes fairs lives) where
+  show (Mod _ c) = show c
+
+instance (Choice constrs, Choice safes, Choice fairs, Choice lives)
+      => Arbitrary (ModCircuit constrs safes fairs lives) where
+  arbitrary =
+    do circ <- arbitrary
+       hasConstrs <- makeChoice
+       hasSafes   <- makeChoice
+       hasFairs   <- makeChoice
+       hasLives   <- makeChoice
+       return $
+         Mod (hasConstrs,hasSafes,hasFairs,hasLives)
+           circ
+           { constrs = choice hasConstrs (constrs circ) []
+           , bads    = choice hasSafes   (bads circ)    []
+           , fairs   = choice hasFairs   (fairs circ)   []
+           , justs   = choice hasLives   (justs circ)   []
+           }
+
+  shrink (Mod c@(hasConstrs,hasSafes,hasFairs,hasLives) circ) =
+    [ Mod c circ'
+    | circ' <- shrink circ
+    , choice hasConstrs True (null (constrs circ'))
+    , choice hasSafes   True (null (bads circ'))
+    , choice hasFairs   True (null (fairs circ'))
+    , choice hasLives   True (null (justs circ'))
+    ]
+
+--------------------------------------------------------------------------------
 
