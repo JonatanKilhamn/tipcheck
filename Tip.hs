@@ -85,6 +85,7 @@ data TipResult
   , safes :: [(Int,Bool)]
   , lives :: [(Int,Bool)]
   }
+ deriving ( Eq, Show )
 
 tip :: Circuit -> [String] -> IO TipResult
 tip circ args =
