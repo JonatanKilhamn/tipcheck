@@ -180,7 +180,7 @@ arbCircuit numInps numFlops numGates (numConstrs,numBads,numFairs,numJusts) =
                  b <- arbitrary
                  return (if b then p else neg p)
    where
-    freqs = [10..]
+    freqs = [50..]
 
   arbGates i 0 pts =
     do return (pts,[])
@@ -203,15 +203,16 @@ arbCircuit numInps numFlops numGates (numConstrs,numBads,numFairs,numJusts) =
 
 instance Arbitrary Circuit where
   arbitrary =
-    sized $ \n ->
+    sized $ \size ->
+      let n = size `div` 5 + 1 in
       do numInps  <- choose (0,n)
          numFlops <- choose (0,n)
          numGates <- choose (0,10*n)
        
-         numConstrs <- choose (0,n `div` 10 + 1)
-         numBads    <- choose (0,n `div` 10 + 1)
-         numFairs   <- choose (0,n `div` 10 + 1)
-         numJusts   <- choose (0,n `div` 10 + 1)
+         numConstrs <- choose (0,n `div` 2 + 1)
+         numBads    <- choose (0,n)
+         numFairs   <- choose (0,n `div` 2 + 1)
+         numJusts   <- choose (0,n)
        
          arbCircuit numInps numFlops numGates (numConstrs,numBads,numFairs,numJusts)
 
