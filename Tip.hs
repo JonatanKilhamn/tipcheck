@@ -27,25 +27,17 @@ prop_TipSafe  = mkProp_TipWith True  ["-td=-1"]
 prop_TipLive  = mkProp_TipWith True  ["-rip-bmc=2"]
 prop_TipBmc   = mkProp_TipWith False ["-alg=bmc", "-k=100"]
 
-prop_Niklas b (Mod (Yes,Yes,No,No) circ) =
+prop_TemporalDecomposition (Mod (No,Yes,No,No) circ) =
   not (null (bads circ) && null (justs circ)) ==>
     Q.monadicIO $
-      do res <- Q.run (tip circ (if b then [] else ["-td=-1"]))
-         Q.monitor (whenFail (writeCircuit inputFailedFile circ))
-         Q.assert (exit res == ExitSuccess)
+      do Q.monitor (whenFail (writeCircuit inputFailedFile circ))
+         
+         res1 <- Q.run (tip circ [])
+         Q.assert (exit res1 == ExitSuccess)
 
-         -- check all safety properties
-         sequence_
-           [ do res' <- Q.run (tip circ{ bads = [bads circ !! p], justs = [] }
-                          (["-alg=bmc", "-k=100"] ++ (if b then ["-td=-1"] else [])))
-                Q.assert (exit res' == ExitSuccess)
-                Q.assert (not complete || not (null proved))
-                Q.assert (null proved || safes res' == [(0,False) | not (head proved)])
-           | p <- [0..length (bads circ)-1]
-           , let proved = [ proved | (p',proved) <- safes res, p == p' ]
-           ]
- where
-  complete = True
+         res2 <- Q.run (tip circ ["-td=-1"])
+         Q.assert (exit res2 == ExitSuccess)
+         Q.assert (res1 == res2)
 
 mkProp_TipWith complete args circ =
   not (null (bads circ) && null (justs circ)) ==>
