@@ -157,7 +157,7 @@ arbCircuit numInps numFlops numGates (numConstrs,numBads,numFairs,numJusts) =
      constrs_ <- sequence [ point pts | i <- [1..numConstrs] ]
      bads_    <- sequence [ point pts | i <- [1..numBads] ]
      fairs_   <- sequence [ point pts | i <- [1..numFairs] ]
-     justs_   <- sequence [ do k <- choose (1,3::Int)
+     justs_   <- sequence [ do k <- choose (0,4::Int)
                                sequence [ point pts | j <- [1..k] ]
                           | i <- [1..numJusts]
                           ]
