@@ -84,6 +84,18 @@ andl xs =
  where
   k = length xs `div` 2
 
+eql :: [Ref] -> [Ref] -> L Ref
+eql [] ys =
+  do andl (map neg ys)
+  
+eql xs [] =
+  do andl (map neg xs)
+  
+eql (x:xs) (y:ys) =
+  do e <- eq2 x y
+     es <- eql xs ys
+     and2 e es
+
 flop0, flop1, flopX :: L (Ref, Ref -> L ())
 flop0 = flop (Just False)
 flop1 = flop (Just True)
@@ -107,6 +119,22 @@ finitely x =
      next_finx finx'
      
      return finx'
+
+eventually :: Ref -> L Ref
+eventually x =
+  do (hap, next_hap) <- flop0
+     hap' <- or2 x hap
+     next_hap hap'
+     return hap'
+
+never :: Ref -> L Ref
+never x = neg `fmap` eventually x
+
+cnst :: L Ref
+cnst =
+  do (x, def_x) <- flopX
+     def_x x
+     return x
 
 --------------------------------------------------------------------------------
 -- props
