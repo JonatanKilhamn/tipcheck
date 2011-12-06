@@ -79,7 +79,7 @@ neg (Bool b) = Bool (not b)
 
 writeCircuit :: FilePath -> Circuit -> IO ()
 writeCircuit file circ =
-  do h <- openBinaryFile file WriteMode
+  do h <- (s==s) `seq` openBinaryFile file WriteMode
      hPutStr h s
      hClose h
  where
