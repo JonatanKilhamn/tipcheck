@@ -13,7 +13,9 @@ import System
 --------------------------------------------------------------------------------
 
 inputFailedFile :: FilePath
-inputFailedFile = "input_failed.aig"
+inputFailedFile  = "input_failed.aig"
+inputFailedFile0 = "input_failed0.aig"
+inputFailedFile2 = "input_failed2.aig"
 
 prop_TipNothingStrange circ =
   Q.monadicIO $
@@ -24,13 +26,32 @@ prop_TipNothingStrange circ =
        Q.assert (length (lives res) == length (justs circ))
 
 prop_TipSafe  = mkProp_TipWith True  ["-td=-1"]
-prop_TipLive  = mkProp_TipWith True  ["-rip-bmc=2"]
+prop_TipLive  = mkProp_TipWith True  ["-sc=1"]
 prop_TipBmc   = mkProp_TipWith False ["-alg=bmc", "-k=100"]
+
+prop_Liveness (Mod (Yes,No,Yes,Yes) circ) =
+  not (null (justs circ)) ==>
+    Q.monadicIO $
+      do Q.monitor (whenFail (writeCircuit inputFailedFile circ))
+         
+         res <- Q.run (tip circ ["-sce=1"])
+         Q.assert (exit res == ExitSuccess)
+
+         sequence_
+           [ do res' <- Q.run (tip circ{ justs = [justs circ !! p], bads = [] } ["-alg=bmc", "-k=100", "-td=-1"])
+                Q.assert (exit res' == ExitSuccess)
+                Q.assert (lives res' == exp)
+           | p <- [0..length (justs circ)-1]
+           , let exp = case [ proved | (p',proved) <- lives res, p == p' ] of
+                         True : _ -> []
+                         _        -> [(0,False)]
+           ]
 
 prop_TemporalDecomposition (Mod (No,Yes,No,No) circ) =
   not (null (bads circ) && null (justs circ)) ==>
     Q.monadicIO $
       do Q.monitor (whenFail (writeCircuit inputFailedFile circ))
+         --Q.monitor (whenFail (writeCircuit inputFailedFile2 (double circ)))
          
          res1 <- Q.run (tip circ [])
          Q.assert (exit res1 == ExitSuccess)
@@ -38,6 +59,63 @@ prop_TemporalDecomposition (Mod (No,Yes,No,No) circ) =
          res2 <- Q.run (tip circ ["-td=-1"])
          Q.assert (exit res2 == ExitSuccess)
          Q.assert (res1 == res2)
+
+prop_Doubling (Mod (No,Yes,No,No) circ) =
+  not (null (bads circ) && null (justs circ)) ==>
+    Q.monadicIO $
+      do Q.monitor (whenFail (writeCircuit inputFailedFile circ))
+         --Q.monitor (whenFail (writeCircuit inputFailedFile2 (double (double circ))))
+         
+         res1 <- Q.run (tip circ [])
+         Q.assert (exit res1 == ExitSuccess)
+
+         --res2 <- Q.run (tip (double "?" (double "!" circ)) [])
+         res2 <- Q.run (tip (double "!" circ) [])
+         Q.assert (exit res2 == ExitSuccess)
+         Q.assert (res1 == res2)
+
+prop_Step (Mod (No,Yes,No,No) circ) =
+  not (null (bads circ) && null (justs circ)) ==>
+    Q.monadicIO $
+      do Q.monitor (whenFail (writeCircuit inputFailedFile circ))
+         --Q.monitor (whenFail (writeCircuit inputFailedFile2 (double (double circ))))
+         
+         res1 <- Q.run (tip circ [])
+         Q.assert (exit res1 == ExitSuccess)
+
+         st0  <- Q.pick (vector (length (flops circ)))
+         inps <- Q.pick (vector (length (inputs circ)))
+         let (c, bs, circ') = step circ st0 inps
+
+         res2 <- Q.run (tip circ' [])
+         Q.assert (exit res2 == ExitSuccess)
+         
+         Q.monitor $ whenFail $ putStr $ unlines $
+           [ show res1
+           , show res2
+           , show bs
+           ]
+         
+         Q.assert ( length (safes res1) == length bs
+                 && length (safes res2) == length bs
+                 && and [ i==j && (not a || (not b0&&b))
+                        | (((i,a),(j,b)),b0) <- (safes res1 `zip` safes res2) `zip` bs
+                        ]
+                  )
+
+prop_DoublingBase (Mod (No,Yes,No,No) circ) =
+  not (null (bads circ) && null (justs circ)) ==>
+    Q.monadicIO $
+      do Q.monitor (whenFail (writeCircuit inputFailedFile circ))
+         Q.monitor (whenFail (writeCircuit inputFailedFile0 (time0 circ)))
+         
+         res1 <- Q.run (tip circ [])
+         Q.assert (exit res1 == ExitSuccess)
+
+         res2 <- Q.run (tip (time0 circ) [])
+         Q.assert (exit res2 == ExitSuccess)
+         Q.assert (length (safes res1) == length (safes res2))
+         Q.assert $ and [ i==j && (not a || b) | ((i,a),(j,b)) <- safes res1 `zip` safes res2 ]
 
 mkProp_TipWith complete args circ =
   not (null (bads circ) && null (justs circ)) ==>
@@ -82,7 +160,7 @@ data TipResult
 tip :: Circuit -> [String] -> IO TipResult
 tip circ args =
   do tryMany (writeCircuit inputFile circ)
-     ret <- system (unwords ([ "" -- "perl -e 'alarm shift @ARGV; exec @ARGV' 4" -- timeout X seconds
+     ret <- system (unwords ([ "" -- "perl -e 'alarm shift @ARGV; exec @ARGV' 5" -- timeout X seconds
                              , tipExe
                              , inputFile
                              , resultFile ]
@@ -114,6 +192,12 @@ tip circ args =
   resultFile = "result.txt"
   outputFile = "output.txt"
   errorFile  = "error.txt"
+{-
+  inputFile  = "/dev/shm/input.aig"
+  resultFile = "/dev/shm/result.txt"
+  outputFile = "/dev/shm/output.txt"
+  errorFile  = "/dev/shm/error.txt"
+-}
 
 --------------------------------------------------------------------------------
 -- helpers

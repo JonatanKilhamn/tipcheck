@@ -61,7 +61,7 @@ prio_props init n k =
      out <- prioqueue init n inp
   
      -- the data we track
-     track <- sequence [ cnst | i <- [1..k] ]
+     track <- sequence [ return ff {- cnst -} | i <- [1..k] ]
      
      -- we complain if these conditions hold simultaneously
      inEvent <- eql track inp

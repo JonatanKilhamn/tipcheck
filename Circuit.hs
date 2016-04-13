@@ -65,6 +65,96 @@ instance Show Circuit where
     commas = concat . intersperse ", " 
 
 --------------------------------------------------------------------------------
+-- inductive testing helper functions
+
+step :: Circuit -> [Bool] -> [Bool] -> (Bool, [Bool], Circuit)
+step circ sin' inps = (pconstr, pbads, circ')
+ where
+  circ' =
+    circ{ flops = [ (x,(Just init',next))
+                  | ((x,(_,next)),init') <- flops circ `zip` sout
+                  ]
+        }
+  
+  pconstr =
+    and [ val x state
+        | x <- constrs circ
+        ]
+
+  pbads =
+    [ val x state
+    | x <- bads circ
+    ]
+
+  state0 =
+    M.fromList $
+    [ (x, v)
+    | ((x,(init,_)),init') <- flops circ `zip` sin'
+    , let v = case init of
+                Nothing -> init'
+                Just i  -> i
+    ] ++
+    [ (x, i)
+    | (x, i) <- inputs circ `zip` inps
+    ]
+
+  state = foldl eval state0 (gates circ)
+   where
+    eval st (x,a,b) =
+      M.insert x (val a st && val b st) st
+  
+  sout =
+    [ val next state
+    | (_,(_,next)) <- flops circ
+    ]
+    
+  val (Pos x) st =
+    case M.lookup x st of
+      Just v -> v
+  val (Neg x) st =
+    not (val (Pos x) st)
+  val (Bool b) st =
+    b
+
+double :: String -> Circuit -> Circuit
+double tag circ =
+  Circuit
+  { inputs  = inputs circ
+           ++ [ pr i | i <- inputs circ ]
+  , flops   = [ (x,(i,prime x')) | (x,(i,x')) <- flops circ ]
+  , gates   = gates circ
+           ++ [ (pr x,x',x') | (x,(_,x')) <- flops circ ]
+           ++ [ (pr x,prime a,prime b) | (x,a,b) <- gates circ ]
+           ++ [ (prop ++ "_" ++ show i,neg b,neg (prime b)) | (b,i) <- bads circ `zip` [1..] ]
+  , constrs = constrs circ
+           ++ map prime (constrs circ)
+  , bads    = [ Neg (prop ++ "_" ++ show i) | (b,i) <- bads circ `zip` [1..] ]
+  , fairs   = [] -- for now
+  , justs   = [] -- for now
+  }
+ where
+  pr x = x ++ "_" ++ tag
+  prop = "prop_" ++ tag
+  
+  prime (Pos x) = Pos (pr x)
+  prime (Neg x) = Neg (pr x)
+  prime b       = b
+
+time0 :: Circuit -> Circuit
+time0 circ =
+  Circuit
+  { inputs  = inputs circ
+           ++ [ x | (x,(Nothing,_)) <- flops circ ]
+  , flops   = []
+  , gates   = [ (x,Bool b,Bool b) | (x,(Just b,_)) <- flops circ ]
+           ++ gates circ
+  , constrs = constrs circ
+  , bads    = bads circ
+  , fairs   = [] -- is OK!
+  , justs   = [] -- is OK!
+  }
+
+--------------------------------------------------------------------------------
 
 ff, tt :: Ref
 ff = Bool False
