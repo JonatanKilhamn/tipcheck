@@ -1,5 +1,6 @@
 module Lava where
 
+import Control.Monad( ap )
 import Circuit
 
 --------------------------------------------------------------------------------
@@ -12,6 +13,10 @@ data Gate
   | Flop (Maybe Bool) Ref
   | And Ref Ref
  deriving ( Show )
+
+instance Applicative L where
+  pure  = return
+  (<*>) = ap
 
 instance Functor L where
   fmap f (L m) =
