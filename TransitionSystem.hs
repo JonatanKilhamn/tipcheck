@@ -10,24 +10,23 @@ import Lava
 --------------------
 
 
--- All these are indices only
-type Location = Int
-type BoolVarInd = Int
-type EventInd = Int
-
-
 -- Only boolean state variables so far
+-- Only constants for the right-hand sides of guards and updates
+
+type Event = Name
+type BoolVar = Name
+type Location = Int
 
 data Guard
   = Guard
-  { gvar  :: BoolVarInd
+  { gvar  :: BoolVar
   , gval  :: Bool
   }
   deriving ( Show, Eq )
 
 data Update
   = Update
-  { uvar :: BoolVarInd
+  { uvar :: BoolVar
   , uval :: Bool
   }
   deriving ( Show, Eq )
@@ -36,7 +35,7 @@ data Update
 data Transition
   = Trans
   { start   :: Location
-  , event   :: EventInd
+  , event   :: Event
   , guards  :: [Guard]
   , updates :: [Update]
   , end     :: Location
@@ -44,7 +43,7 @@ data Transition
   deriving ( Show )
 
 
-type State = (Location, [VarVal])
+--type State = (Location, [VarVal])
 
 
 data Automaton
@@ -57,33 +56,28 @@ data Automaton
   deriving ( Show )
 
 
-type Event = Name
-type BoolVar = Name
-
-
-data ContextAutomaton
-   = CA
-   {automaton :: Automaton
-   , events   :: [Event]
-   , boolVars :: [BoolVar]
-   }
-  deriving ( Show )
-
 
 data Synchronisation
   = Synch
-  { automata :: [ContextAutomaton]
+  { automata :: [Automaton]
   , allEvents   :: [Event]
   , allBoolVars :: [BoolVar]
   }
  deriving ( Show )
 
+--events :: Automaton -> [Event]
+--events a = foldl (union $ event) [] (transitions a)
 
-synchronise :: ContextAutomaton -> Synchronisation -> Synchronisation
-synchronise ca s =
-  Synch {automata = ca:(automata s)
-        , allEvents = union (allEvents s) (events ca)
-        , allBoolVars = union (allBoolVars s) (boolVars ca)
+--boolVars :: Automaton -> [Event]
+--boolVars a = foldl (union . (guards)) [] (transitions a)
+
+
+
+synchronise :: Automaton -> Synchronisation -> Synchronisation
+synchronise a s =
+  Synch {automata = a:(automata s)
+        , allEvents = undefined--union (allEvents s) (events a)
+        , allBoolVars = undefined--union (allBoolVars s) (boolVars a)
         }
 
 emptySynch :: Synchronisation
@@ -134,8 +128,8 @@ transToLava e l svs t = undefined {-
    startEvent = start t
 
 
-locationOH :: ContextAutomaton -> L [(Ref, Ref -> L ())]
-locationOH ca = oneHotFlops (0, nbrLocations (automaton ca))
+locationOH :: Automaton -> L [(Ref, Ref -> L ())]
+locationOH a = oneHotFlops (0, nbrLocations a)
 
 
 -- Input is (hot_value, #values)
@@ -160,12 +154,18 @@ l1, l2 :: Location
 l1 = 0
 l2 = 1
 
-e1, e2 :: EventInd
-e1 = 0
-e2 = 1
+e1, e2, e3, e4 :: Event
+e1 = "a"
+e2 = "b"
+e3 = "c"
+e4 = "d"
+
+bvar1, bvar2 :: BoolVar
+bvar1 = "x"
+bvar2 = "y"
 
 u1 :: Update
-u1 = Update {uvar = 0, uval = False}
+u1 = Update {uvar = bvar1, uval = False}
 
 t1, t2 :: Transition
 t1 = Trans {start=l1,event=e1,guards=[g0],updates=[],end=l2}
@@ -177,24 +177,12 @@ aut1 = Aut {nbrLocations = 2,
             nbrEvents = 2,
             transitions = [t1,t2]}
 
-caut1 :: ContextAutomaton
-caut1 = CA {automaton = aut1, events = ["foo","bar"], boolVars = ["x"]}
-
-
-bvar1, bvar2 :: BoolVar
-bvar1 = "x"
-bvar2 = "y"
-
 
 -- Example automata
 
-e3, e4 :: EventInd
-e3 = 2
-e4 = 3
 
 globalEventList :: [Event]
-globalEventList = ["a","b","c","d"]
-
+globalEventList = [e1,e2,e3,e4]
 
 
 ex1t1, ex1t2 :: Transition
@@ -226,23 +214,6 @@ exAut3 = Aut { nbrLocations = 2
              , nbrEvents = 2
              , transitions = [ex1t1, ex1t2]
              }
-
-exCA1, exCA2, exCA3 :: ContextAutomaton
-exCA1 = CA
-        { automaton = exAut1
-        , events = map (\x -> globalEventList!!x) [0,2]
-        , boolVars = []
-        }
-exCA2 = CA
-        { automaton = exAut2
-        , events = globalEventList
-        , boolVars = []
-        }
-exCA3 = CA
-        { automaton = exAut3
-        , events = map (\x -> globalEventList!!x) [1,3]
-        , boolVars = []
-        }
 
 
 
