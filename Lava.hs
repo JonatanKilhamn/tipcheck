@@ -100,6 +100,12 @@ eql (x:xs) (y:ys) =
   do e <- eq2 x y
      es <- eql xs ys
      and2 e es
+     
+multi_xor :: [Ref] -> L Ref
+multi_xor [] = return ff
+multi_xor (x:xs) =
+ do a <- multi_xor xs
+    xor2 x a
 
 flop0, flop1, flopX :: L (Ref, Ref -> L ())
 flop0 = flop (Just False)

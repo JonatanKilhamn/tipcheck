@@ -92,10 +92,7 @@ emptySynch = Synch {automata = []
 
 type OneHot = [Ref]
 
-type OneHotMap k = k -> Ref
-
 type OneHotFlop = L (OneHot, OneHot -> L ())
-
 
 
 -- TODO: could also take an initial state of variables as input, if that's not
@@ -103,30 +100,58 @@ type OneHotFlop = L (OneHot, OneHot -> L ())
 -- Question to self: what does above TODO mean?
 -- rs are misc. input, like the "uncontrollable" we talked about
 transitionsystem :: Synchronisation -> OneHot -> [Ref] -> L [Ref]
-transitionsystem s event rs =    
-  do -- create state variables
+transitionsystem s event rs
+ | (length event) /= (length $ allEvents s) = error "Event array wrong length"
+ | otherwise = do 
+
+      -- create state variables
      varFlops <- sequence [ flop Nothing | var <- allBoolVars s ]
      let (varRefs, nextVars) = unzip varFlops
-     let varMap = Map.fromList (zip (allBoolVars s) varRefs)
+     let varMap v = fromJust $ lookup v (zip (allBoolVars s) varRefs)
+     
      -- create location state variables
      locFlops <- sequence [ locationOH aut | aut <- automata s ]
+     let (locs, nextLocs) = unzip locFlops
      
+     -- bind eventMap
+     let eventMap e = fromJust $ lookup e (zip (allEvents s) event)
      
      -- create circuits corresponding to each transition
-     --(transToLava locFlops
+     
+     allTransitions <- sequence $ concat
+       [ [ transToLava loc varMap eventMap t
+         | t <- transitions a ]
+       | (a, loc) <- (automata s) `zip` locs ]
+     let (udslists, errs) = unzip allTransitions
+     
+     
      
      return undefined
      
 
-
 locationOH :: Automaton -> OneHotFlop
-locationOH a = oneHotFlops (0, nbrLocations a)
+locationOH a = oneHotFlops (1, nbrLocations a)
+
+-- Input is (hot_value, #values)
+oneHotFlops :: (Int, Int) -> OneHotFlop
+oneHotFlops (val, max)
+-- TODO: add case (maybe flag val=-1) for an all-maybe flop? Or would that
+-- almost always come up as an illegal one-hot array?
+  | 1 <= val && val <= max =
+    let (L m0) = sequence [ flop (Just (i==val))
+                          | i <- [1..max] ]
+    in L (\n0 -> let (tups, n1, gs1) = m0 n0
+                     (ins, outs)     = unzip tups
+                     outApp          = (zipWith ($) outs)
+                  in ((ins, sequence_ . outApp), n1, gs1))    
+  | otherwise = error "oneHotFlops: index out of bounds"
 
 
+type RefMap k = k -> Ref
 
 -- Input is location, event map, state var map, transition
 -- Output is (possible updates, error)
-transToLava :: OneHot -> (OneHotMap Event) -> (OneHotMap BoolVar) -> Transition ->
+transToLava :: OneHot -> (RefMap Event) -> (RefMap BoolVar) -> Transition ->
   L ([BoolVar -> Ref],Ref)
 transToLava l em svm t =
   do
@@ -139,7 +164,7 @@ transToLava l em svm t =
      clearedGuards <- orl gs
      
      -- Compute possible updates
-     let uds = []
+     let uds = []-- \v -> if (uvar) | update <- updates t ]
      
      -- Compute error
      -- is it possible to find an error on this level?
@@ -151,26 +176,13 @@ transToLava l em svm t =
    transitionEvent = event t
    startLocation = start t
    
-guardToLava :: (BoolVar -> Ref) -> Guard -> L Ref
+guardToLava :: (RefMap BoolVar) -> Guard -> L Ref
 guardToLava svm g = case (gval g) of
                          (True) -> return $ svm $ gvar g
                          (False) -> return $ neg $ svm $ gvar g
                          
 
 
-
-
--- Input is (hot_value, #values)
-oneHotFlops :: (Int, Int) -> OneHotFlop
-oneHotFlops (val, max)
-  | 1 <= val && val <= max =
-    let (L m0) = sequence [ flop (if i==val then Just True else Just False)
-                          | i <- [1..max] ]
-    in L (\n0 -> let (tups, n1, gs1) = m0 n0
-                     (ins, outs)     = unzip tups
-                     outApp          = (zipWith ($) outs)
-                  in ((ins, sequence_ . outApp), n1, gs1))    
-  | otherwise = error "oneHotFlops: index out of bounds"
 
 
 
