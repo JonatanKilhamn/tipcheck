@@ -152,23 +152,30 @@ type RefMap k = k -> Ref
 -- Input is location, event map, state var map, transition
 -- Output is (possible updates, error)
 transToLava :: OneHot -> (RefMap Event) -> (RefMap BoolVar) -> Transition ->
-  L ([BoolVar -> Ref],Ref)
+  L ([(BoolVar, Ref)],Ref)
 transToLava l em svm t =
   do
      -- check for the right event
      let eventFired = em transitionEvent
+     
      -- Check whether we're in the right location
      let isInStartLocation = l!!(startLocation)
+     
      -- Check all the guards
      gs <- sequence $ map (guardToLava svm) (guards t)
      clearedGuards <- orl gs
      
+     transFired <- and2 eventFired isInStartLocation
+     
+     blocked <- and2 eventFired (neg clearedGuards)
+     
      -- Compute possible updates
-     let uds = []-- \v -> if (uvar) | update <- updates t ]
+     udNew <- sequence [updateToLava update | update <- updates t ]
+     let uds = zip (map uvar (updates t)) udNew
      
      -- Compute error
      -- is it possible to find an error on this level?
-     let err = ff
+     let err = blocked
 
      return (uds,err)
 
@@ -181,7 +188,12 @@ guardToLava svm g = case (gval g) of
                          (True) -> return $ svm $ gvar g
                          (False) -> return $ neg $ svm $ gvar g
                          
-
+-- TODO: when using non-constant updates, edit this function to
+-- take more Refs as arguments - perhaps a (RefMap BoolVar)
+updateToLava :: Update -> L Ref
+updateToLava u = case (uval u) of
+                      (True) -> return tt
+                      (False) -> return ff
 
 
 
