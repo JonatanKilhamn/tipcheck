@@ -1,4 +1,4 @@
-module TS where
+module TransitionSystem where
 
 import Data.Maybe
 import Data.Function
@@ -49,7 +49,8 @@ data Transition
 
 data Automaton
   = Aut
-  { nbrLocations :: Int
+  { autName :: Name
+  , nbrLocations :: Int
   , nbrBoolVars  :: Int
   , nbrEvents    :: Int
   , transitions :: [Transition]
@@ -89,228 +90,6 @@ emptySynch = Synch {automata = []
 
 
 
--- Circuit generation part:
-
-type OneHot = [Ref]
-
-type OneHotFlop = (OneHot, OneHot -> L ())
-
-
--- TODO: could also take an initial state of variables as input, if that's not
--- in the Synchronisation
--- Question to self: what does above TODO mean?
--- ins are misc. input, like the "uncontrollable" we talked about
-transitionsystem :: Synchronisation -> OneHot -> [Ref] -> L Ref
-transitionsystem s ev ins
- | (length ev) /= (length $ allEvents s) = error "Event array wrong length"
- | otherwise = do 
-
-      -- create state variables
-     varFlops <- sequence [ flop Nothing | var <- allBoolVars s ]
-     let (varRefs, nextVars) = unzip varFlops
-
-     -- Map from BoolVar to Ref
-     let varMap v = fromJust $ lookup v (zip (allBoolVars s) varRefs)
-     -- Map from BoolVar to update function (Ref -> L ())
-     let nextValMap v = fromJust $ lookup (varMap v) varFlops 
-     
-     -- create location state variables
-     locFlops <- sequence [ locationOH aut | aut <- automata s ]
-     let (locs, nextLocs) = unzip locFlops
-     
-     -- bind eventMap
-     let eventMap e = fromJust $ lookup e (zip (allEvents s) ev)
-     
-     -- create circuits and find updated values for each event
-     let
-      ts = 
-        [ ( [ (t, locflop)
-            | (a, locflop) <- (automata s) `zip` locFlops,
-              t <- transitions a,
-              e == (event t) ]
-          , eventMap e )
-        | e <- allEvents s ]
-     let (_, evRefs) = unzip ts
-     
-     eventCircuits <- sequence $ map (eventToLava varMap) ts
-     let (eventUds, locUds, evErrs) = unzip3 eventCircuits
-     
-     
-     let
-      updatesByVar = groupBy ((==) `on` snd)
-        [ ((newVal, evRef), var)
-        | (udList, evRef) <- zip eventUds evRefs,
-          (var, newVal) <- udList
-        ]
-     
-     let
-      uds1 = [ (updatesToLava refPairs, head vars)
-             | uds <- updatesByVar,
-               let (refPairs, vars) = unzip uds
-             ]
-     let
-      (uds2, vars) = unzip uds1
-     uds3 <- sequence uds2
-     let
-      (newVals, udErrs) = unzip uds3
-     
-     performUpdates (zip (allBoolVars s) varFlops) (zip vars newVals)
-          
-     err1 <- orl evErrs
-     err2 <- orl udErrs
-     
-     err <- or2 err1 err2
-     
-     return err
-     
-
-locationOH :: Automaton -> L OneHotFlop
-locationOH a = oneHotFlops (1, nbrLocations a)
-
--- Input is (hot_value, #values)
-oneHotFlops :: (Int, Int) -> L OneHotFlop
-oneHotFlops (val, max)
--- TODO: add case (maybe flag val=-1) for an all-maybe flop? Or would that
--- almost always come up as an illegal one-hot array?
-  | 1 <= val && val <= max =
-    let (L m0) = sequence [ flop (Just (i==val))
-                          | i <- [1..max] ]
-    in L (\n0 -> let (tups, n1, gs1) = m0 n0
-                     (ins, outs)     = unzip tups
-                     outApp          = (zipWith ($) outs)
-                  in ((ins, sequence_ . outApp), n1, gs1))    
-  | otherwise = error "oneHotFlops: index out of bounds"
-
-
-type RefMap k = k -> Ref
-type UpdateMap k = k -> (Ref -> L ())
-
-performUpdates :: [(BoolVar, (Ref, Ref -> L ()))] -> [(BoolVar, Ref)] ->
-  L ()
-performUpdates varFlops uds = 
- do
-    sequence_ [ performUpdate old new next
-              | (var, (old, next)) <- varFlops,
-                let new = lookup var uds
-              ]
-
-performUpdate :: Ref -> (Maybe Ref) -> (Ref -> L()) -> L ()
-performUpdate old new next =
- case (new) of
-      (Just ref) -> next ref
-      Nothing     -> next old
-    
-
-
--- Input is state var map, transition, eventIsFired, isInLocation
--- Output is (possible updates, transFired, error)
-transToLava :: (RefMap BoolVar) -> Transition -> Ref -> Ref ->
-  L ([(BoolVar, Ref)],Ref,Ref)
-transToLava svm t ef isinl =
-  do     
-
-     -- check whether the event is fired
-     transFired <- and2 ef isinl
-          
-     -- Check all the guards
-     gs <- sequence $ map (guardToLava svm) (guards t)
-     clearedGuards <- orl gs
-     
-     blocked <- and2 transFired (neg clearedGuards)
-     
-     -- Compute possible updates
-     udNew <- sequence [ updateToLava update | update <- updates t ]
-     let uds = zip (map uvar (updates t)) udNew
-     
-     return (uds, transFired, blocked)
-   
-guardToLava :: (RefMap BoolVar) -> Guard -> L Ref
-guardToLava svm g = case (gval g) of
-                         (True) -> return $ svm $ gvar g
-                         (False) -> return $ neg $ svm $ gvar g
-                         
--- TODO: when using non-constant updates, edit this function to
--- take more Refs as arguments - perhaps a (RefMap BoolVar)
-updateToLava :: Update -> L Ref
-updateToLava u = case (uval u) of
-                      (True) -> return tt
-                      (False) -> return ff
-
-
--- This function represents the Lava circuit generation corresponding
--- to one event; i.e. all transitions firing on that event.
--- Input are: varmap, (transition-location-pairs, eventIsFired)
--- Output is (varupdates, locupdates, error)
--- TODO: location updates!
-eventToLava :: (RefMap BoolVar) -> ([(Transition, OneHotFlop)], Ref) ->
-  L ([(BoolVar, Ref)], Ref, Ref)
-eventToLava bvm (tlps, ef) =
-  do
-     -- Create circuits for new variable values and guard checking
-     transOutputs <- sequence
-       [ transToLava bvm t ef isinl
-       | (t,(l,_)) <- tlps,
-         let isinl = l!!(start t) ]
-         
-     
-         
-     let (allUpdates, allIsFireds, transErrs) = unzip3 transOutputs
-     
-     -- Gates representing firing an event when guards or locations are wrong
-     err1 <- orl transErrs
-     
-     -- Create circuits for consolidating location updates within this event
-     
-     
-     -- Create circuits for consolidating variable updates within this event
-     let
-      updatesByVar = groupBy ((==) `on` snd)
-        [ ((newVal, isFired), var)
-        | (udList, isFired) <- zip allUpdates allIsFireds,
-          (var, newVal) <- udList
-        ]
-     let
-      uds1 = [ (updatesToLava refPairs, head vars)
-             | uds <- updatesByVar,
-               let (refPairs, vars) = unzip uds
-             ]
-     let
-      (uds2, vars) = unzip uds1
-     uds3 <- sequence uds2
-     let
-      (newVals, udErrs) = unzip uds3
-      uds4 = zip vars newVals
-      
-     -- Gates representing two different transitions updating an event
-     -- at the same time
-     err2 <- orl udErrs
-     
-     err <- or2 err1 err2
-     
-     return (uds4, undefined, err)
-     
-
--- Input: pairs of isFired and newVals
--- Output: newval, error
--- Desired logic: if only one isFired is true, that newVal should go through.
--- If more than one, error is true.
-updatesToLava :: [(Ref, Ref)] -> L (Ref, Ref)
-updatesToLava pairs = 
- do
-    let (gates, vals) = unzip pairs
-    one  <- multi_xor gates
-    let err = neg one
-    
-    outs <- sequence $ map (uncurry and2) pairs
-    out <- orl outs
-    
-    return (out,err)
-     
-
-fst3 :: (a,b,c) -> a
-fst3 (x,_,_) = x
-
-
 --
 -- Test instances
 --
@@ -340,7 +119,8 @@ t1 = Trans {start=l1,event=e1,guards=[g0],updates=[],end=l2}
 t2 = Trans {start=l2,event=e2,guards=[g0],updates=[],end=l1}
 
 aut1 :: Automaton
-aut1 = Aut {nbrLocations = 2,
+aut1 = Aut {autName = "foo",
+            nbrLocations = 2,
             nbrBoolVars = 0,
             nbrEvents = 2,
             transitions = [t1,t2]}
@@ -365,29 +145,28 @@ ex2t4 = Trans {start=l2,event=e4,guards=[],updates=[],end=l1}
 
 
 exAut1, exAut2, exAut3 :: Automaton
-exAut1 = Aut { nbrLocations = 2
+exAut1 = Aut { autName = "a1"
+             , nbrLocations = 2
              , nbrBoolVars = 0
              , nbrEvents = 2
              , transitions = [ex1t1, ex1t2]
              }
 
-exAut2 = Aut { nbrLocations = 2
+exAut2 = Aut { autName = "a2"
+             , nbrLocations = 5
              , nbrBoolVars = 0
              , nbrEvents = 4
              , transitions = [ex2t1, ex2t2, ex2t3, ex2t4]
              }
 
-exAut3 = Aut { nbrLocations = 2
+exAut3 = Aut { autName = "a3"
+             , nbrLocations = 2
              , nbrBoolVars = 0
              , nbrEvents = 2
              , transitions = [ex1t1, ex1t2]
              }
 
 s1 = foldl synchronise emptySynch [exAut1, exAut3]
-
-eventOH :: [Event] -> OneHot
-eventOH = map Pos
-
 
 
 
