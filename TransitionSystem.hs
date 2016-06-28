@@ -1,6 +1,7 @@
 module TS where
 
 import Data.Maybe
+import Data.Function
 import qualified Data.Map as Map
 import Data.List
 import qualified Control.Monad as C
@@ -98,35 +99,70 @@ type OneHotFlop = L (OneHot, OneHot -> L ())
 -- TODO: could also take an initial state of variables as input, if that's not
 -- in the Synchronisation
 -- Question to self: what does above TODO mean?
--- rs are misc. input, like the "uncontrollable" we talked about
-transitionsystem :: Synchronisation -> OneHot -> [Ref] -> L [Ref]
-transitionsystem s event rs
- | (length event) /= (length $ allEvents s) = error "Event array wrong length"
+-- ins are misc. input, like the "uncontrollable" we talked about
+transitionsystem :: Synchronisation -> OneHot -> [Ref] -> L Ref
+transitionsystem s ev ins
+ | (length ev) /= (length $ allEvents s) = error "Event array wrong length"
  | otherwise = do 
 
       -- create state variables
      varFlops <- sequence [ flop Nothing | var <- allBoolVars s ]
      let (varRefs, nextVars) = unzip varFlops
+
+     -- Map from BoolVar to Ref
      let varMap v = fromJust $ lookup v (zip (allBoolVars s) varRefs)
+     -- Map from BoolVar to update function (Ref -> L ())
+     let nextValMap v = fromJust $ lookup (varMap v) varFlops 
      
      -- create location state variables
      locFlops <- sequence [ locationOH aut | aut <- automata s ]
      let (locs, nextLocs) = unzip locFlops
      
      -- bind eventMap
-     let eventMap e = fromJust $ lookup e (zip (allEvents s) event)
+     let eventMap e = fromJust $ lookup e (zip (allEvents s) ev)
      
-     -- create circuits corresponding to each transition
+     -- create circuits and find updated values for each event
+     let
+      ts = 
+        [ ( [ (t, loc)
+            | (a, loc) <- (automata s) `zip` locs,
+              t <- transitions a,
+              e == (event t) ]
+          , eventMap e )
+        | e <- allEvents s ]
+     let (_, evRefs) = unzip ts
      
-     allTransitions <- sequence $ concat
-       [ [ transToLava loc varMap eventMap t
-         | t <- transitions a ]
-       | (a, loc) <- (automata s) `zip` locs ]
-     let (udslists, errs) = unzip allTransitions
+     eventCircuits <- sequence $ map (eventToLava varMap) ts
+     let (eventUds, evErrs) = unzip eventCircuits
      
      
+     let
+      updatesByVar = groupBy ((==) `on` snd)
+        [ ((newVal, evRef), var)
+        | (udList, evRef) <- zip eventUds evRefs,
+          (var, newVal) <- udList
+        ]
      
-     return undefined
+     let
+      uds1 = [ (updatesToLava refPairs, head vars)
+             | uds <- updatesByVar,
+               let (refPairs, vars) = unzip uds
+             ]
+     let
+      (uds2, vars) = unzip uds1
+     uds3 <- sequence uds2
+     let
+      (newVals, udErrs) = unzip uds3
+      
+     sequence_ $ zipWith ($) (map nextValMap vars) newVals
+     
+     err1 <- orl evErrs
+     err2 <- orl udErrs
+     
+     err <- or2 err1 err2
+     
+     
+     return err
      
 
 locationOH :: Automaton -> OneHotFlop
@@ -149,39 +185,28 @@ oneHotFlops (val, max)
 
 type RefMap k = k -> Ref
 
--- Input is location, event map, state var map, transition
--- Output is (possible updates, error)
-transToLava :: OneHot -> (RefMap Event) -> (RefMap BoolVar) -> Transition ->
-  L ([(BoolVar, Ref)],Ref)
-transToLava l em svm t =
-  do
-     -- check for the right event
-     let eventFired = em transitionEvent
-     
-     -- Check whether we're in the right location
-     let isInStartLocation = l!!(startLocation)
-     
+-- Input is state var map, transition, eventIsFired, isInLocation
+-- Output is (possible updates, transFired, error)
+transToLava :: (RefMap BoolVar) -> Transition -> Ref -> Ref ->
+  L ([(BoolVar, Ref)],Ref,Ref)
+transToLava svm t ef isinl =
+  do     
+
+     -- check whether the event is fired
+     transFired <- and2 ef isinl
+          
      -- Check all the guards
      gs <- sequence $ map (guardToLava svm) (guards t)
      clearedGuards <- orl gs
      
-     transFired <- and2 eventFired isInStartLocation
-     
-     blocked <- and2 eventFired (neg clearedGuards)
+
+     blocked <- and2 transFired (neg clearedGuards)
      
      -- Compute possible updates
-     udNew <- sequence [updateToLava update | update <- updates t ]
+     udNew <- sequence [ updateToLava update | update <- updates t ]
      let uds = zip (map uvar (updates t)) udNew
      
-     -- Compute error
-     -- is it possible to find an error on this level?
-     let err = blocked
-
-     return (uds,err)
-
- where
-   transitionEvent = event t
-   startLocation = start t
+     return (uds, transFired, blocked)
    
 guardToLava :: (RefMap BoolVar) -> Guard -> L Ref
 guardToLava svm g = case (gval g) of
@@ -196,7 +221,68 @@ updateToLava u = case (uval u) of
                       (False) -> return ff
 
 
+-- This function represents the Lava circuit generation corresponding
+-- to one event; i.e. all transitions firing on that event.
+-- Input are: varmap, (transition-location-pairs, eventIsFired)
+-- Output is (updates, error)
+eventToLava :: (RefMap BoolVar) -> ([(Transition, OneHot)], Ref) ->
+  L ([(BoolVar, Ref)], Ref)
+eventToLava bvm (tlps, ef) =
+  do
+     transOutputs <- sequence
+       [ transToLava bvm t ef isinl
+       | (t,l) <- tlps,
+         let isinl = l!!(start t) ]
+         
+     let (allUpdates, allIsFireds, transErrs) = unzip3 transOutputs
+     
+     err1 <- orl transErrs
+     
+     let
+      updatesByVar = groupBy ((==) `on` snd)
+        [ ((newVal, isFired), var)
+        | (udList, isFired) <- zip allUpdates allIsFireds,
+          (var, newVal) <- udList
+        ]
+          
+     let
+      uds1 = [ (updatesToLava refPairs, head vars)
+             | uds <- updatesByVar,
+               let (refPairs, vars) = unzip uds
+             ]
+     let
+      (uds2, vars) = unzip uds1
+     uds3 <- sequence uds2
+     let
+      (newVals, udErrs) = unzip uds3
+      uds4 = zip vars newVals
+      
+     err2 <- orl udErrs
+     
+     err <- or2 err1 err2
+     
+     return (uds4, err)
+     
 
+-- Input: pairs of isFired and newVals
+-- Output: newval, error
+-- Desired logic: if only one isFired is true, that newVal should go through.
+-- If more than one, error is true.
+updatesToLava :: [(Ref, Ref)] -> L (Ref, Ref)
+updatesToLava pairs = 
+ do
+    let (gates, vals) = unzip pairs
+    one  <- multi_xor gates
+    let err = neg one
+    
+    outs <- sequence $ map (uncurry and2) pairs
+    out <- orl outs
+    
+    return (out,err)
+     
+
+fst3 :: (a,b,c) -> a
+fst3 (x,_,_) = x
 
 
 --
@@ -270,6 +356,8 @@ exAut3 = Aut { nbrLocations = 2
              , nbrEvents = 2
              , transitions = [ex1t1, ex1t2]
              }
+
+--s1 = synchronise
 
 
 
