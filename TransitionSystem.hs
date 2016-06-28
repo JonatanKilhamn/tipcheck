@@ -74,8 +74,8 @@ boolVars a = nub $ concat $ map boolVars' (transitions a)
  where boolVars' t = (map gvar (guards t)) ++ (map uvar (updates t))
 
 
-synchronise :: Automaton -> Synchronisation -> Synchronisation
-synchronise a s =
+synchronise :: Synchronisation -> Automaton -> Synchronisation
+synchronise s a =
   Synch {automata = a:(automata s)
         , allEvents = union (allEvents s) (events a)
         , allBoolVars = union (allBoolVars s) (boolVars a)
@@ -160,7 +160,6 @@ transitionsystem s ev ins
      err2 <- orl udErrs
      
      err <- or2 err1 err2
-     
      
      return err
      
@@ -357,7 +356,10 @@ exAut3 = Aut { nbrLocations = 2
              , transitions = [ex1t1, ex1t2]
              }
 
---s1 = synchronise
+s1 = foldl synchronise emptySynch [exAut1, exAut3]
+
+eventOH :: [Event] -> OneHot
+eventOH = map Pos
 
 
 
