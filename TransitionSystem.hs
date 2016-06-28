@@ -133,7 +133,7 @@ transitionsystem s ev ins
      let (_, evRefs) = unzip ts
      
      eventCircuits <- sequence $ map (eventToLava varMap) ts
-     let (eventUds, evErrs) = unzip eventCircuits
+     let (eventUds, locUds, evErrs) = unzip3 eventCircuits
      
      
      let
@@ -153,9 +153,9 @@ transitionsystem s ev ins
      uds3 <- sequence uds2
      let
       (newVals, udErrs) = unzip uds3
-      
-     sequence_ $ zipWith ($) (map nextValMap vars) newVals
      
+     performUpdates (zip (allBoolVars s) varFlops) (zip vars newVals)
+          
      err1 <- orl evErrs
      err2 <- orl udErrs
      
@@ -183,6 +183,24 @@ oneHotFlops (val, max)
 
 
 type RefMap k = k -> Ref
+type UpdateMap k = k -> (Ref -> L ())
+
+performUpdates :: [(BoolVar, (Ref, Ref -> L ()))] -> [(BoolVar, Ref)] ->
+  L ()
+performUpdates varFlops uds = 
+ do
+    sequence_ [ performUpdate old new next
+              | (var, (old, next)) <- varFlops,
+                let new = lookup var uds
+              ]
+
+performUpdate :: Ref -> (Maybe Ref) -> (Ref -> L()) -> L ()
+performUpdate old new next =
+ case (new) of
+      (Just ref) -> next ref
+      Nothing     -> next old
+    
+
 
 -- Input is state var map, transition, eventIsFired, isInLocation
 -- Output is (possible updates, transFired, error)
@@ -223,9 +241,10 @@ updateToLava u = case (uval u) of
 -- This function represents the Lava circuit generation corresponding
 -- to one event; i.e. all transitions firing on that event.
 -- Input are: varmap, (transition-location-pairs, eventIsFired)
--- Output is (updates, error)
+-- Output is (varupdates, locupdates, error)
+-- TODO: location updates!
 eventToLava :: (RefMap BoolVar) -> ([(Transition, OneHot)], Ref) ->
-  L ([(BoolVar, Ref)], Ref)
+  L ([(BoolVar, Ref)], Ref, Ref)
 eventToLava bvm (tlps, ef) =
   do
      transOutputs <- sequence
@@ -260,7 +279,7 @@ eventToLava bvm (tlps, ef) =
      
      err <- or2 err1 err2
      
-     return (uds4, err)
+     return (uds4, undefined, err)
      
 
 -- Input: pairs of isFired and newVals
