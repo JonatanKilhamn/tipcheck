@@ -49,6 +49,10 @@ input :: L Ref
 input =
   L (\n -> let z     = "I" ++ show n
             in n `seq` (Pos z, n+1, [(z, Input)]))
+            
+logL :: String -> L ()
+logL msg =
+  L (\n -> n `seq` ((), n, [(msg, Input)]))
 
 flop :: Maybe Bool -> L (Ref, Ref -> L ())
 flop init =
