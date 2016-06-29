@@ -1,4 +1,4 @@
-module TSC where
+module TransitionSystemCircuits where
 
 import Data.Maybe
 import Data.Function

@@ -51,8 +51,6 @@ data Automaton
   = Aut
   { autName :: Name
   , nbrLocations :: Int
-  , nbrBoolVars  :: Int
-  , nbrEvents    :: Int
   , transitions :: [Transition]
   }
   deriving ( Show )
@@ -90,6 +88,8 @@ emptySynch = Synch {automata = []
 
 
 
+
+
 --
 -- Test instances
 --
@@ -121,8 +121,6 @@ t2 = Trans {start=l2,event=e2,guards=[g0],updates=[],end=l1}
 aut1 :: Automaton
 aut1 = Aut {autName = "foo",
             nbrLocations = 2,
-            nbrBoolVars = 0,
-            nbrEvents = 2,
             transitions = [t1,t2]}
 
 
