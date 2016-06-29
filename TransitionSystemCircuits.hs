@@ -14,6 +14,8 @@ import Control.Monad.State
 
 
 type OneHot = [Ref]
+type Bin = [Ref]
+type Un = [Ref]
 
 type OneHotFlop = (OneHot, OneHot -> L ())
 
@@ -24,7 +26,7 @@ data CState k = CS { origVal   :: k
                    , hasError  :: Ref
                    }
   deriving ( Show )
-  
+
 newState :: k -> CState k
 newState a = CS { origVal = a
                 , latestVal = a
@@ -39,7 +41,7 @@ type CEvent = Ref
 eventInput :: [Event] -> EventMap
 eventInput = map (\x -> (x, Pos x))
 
-type CAutomaton = (Name, CLocation)
+type LocationsMap = [(Name, CLocation)]
 
 type BoolVarMap = [(BoolVar, CBoolVar)]
 
@@ -48,37 +50,12 @@ type EventMap = [(Event, CEvent)]
 
 data CSynch
   = SynchC
-  { automataC :: [CAutomaton]
-  , boolVarsC :: BoolVarMap
-  , eventsC   :: EventMap
+  { locMap :: LocationsMap
+  , boolVarMap :: BoolVarMap
+  , eventMap   :: EventMap
   , globalError :: Ref
   }
   
-  
--- TODO: avoid duplication below - maybe a typeclass that includes
--- Ref, Bin, OneHot and Un?
-
--- input: lastval, hasUpdated, hasError, shouldUpdate, newVal
--- Output: lastval', hasUpdated', hasError'
-singleRefUpdate :: (Ref, Ref, Ref, Ref, Ref) -> L (Ref, Ref, Ref)
-singleRefUpdate (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
- do
-    clash <- and2 shouldUpdate hasUpdated
-    hasError' <- or2 clash hasError
-    hasUpdated' <- or2 shouldUpdate hasUpdated
-    nextVal <- mux shouldUpdate (lastVal, newVal)
-    return (nextVal, hasUpdated', hasError')
-
--- input: lastval, hasUpdated, hasError, shouldUpdate, newVal
--- Output: lastval', hasUpdated', hasError'
-oneHotUpdate :: (OneHot, Ref, Ref, Ref, OneHot) -> L (OneHot, Ref, Ref)
-oneHotUpdate (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
- do
-    clash <- and2 shouldUpdate hasUpdated
-    hasError' <- or2 clash hasError
-    hasUpdated' <- or2 shouldUpdate hasUpdated
-    nextVal <- sequence $ map (mux shouldUpdate) (zip lastVal newVal)
-    return (nextVal, hasUpdated', hasError')
 
 
 processSystem :: Synchronisation -> EventMap -> [Ref] -> L [Ref]
@@ -97,9 +74,9 @@ processSystem s evm ins
      let auts = [ (name, (newState loc))
                 | ((loc, _), name) <- zip locFlops (map autName $ automata s) ]
          bvs = zip (allBoolVars s) (map (newState . fst) varFlops)
-         state = SynchC { automataC = auts
-                        , boolVarsC = bvs
-                        , eventsC   = evm
+         state = SynchC { locMap = auts
+                        , boolVarMap = bvs
+                        , eventMap   = evm
                         , globalError = ff
                         }
      
@@ -114,27 +91,29 @@ processSystem s evm ins
      -- set the updated location values
      sequence_ $ zipWith ($)
        (map snd locFlops)
-       (map (latestVal . snd) (automataC state1))
+       (map (latestVal . snd) (locMap state1))
        
      -- set the updated variable values
      sequence_ $ zipWith ($)
        (map snd varFlops)
-       (map (latestVal . snd) (boolVarsC state1))     
+       (map (latestVal . snd) (boolVarMap state1))     
      
      -- compute errors
-     locErr <- orl (map (hasError . snd) (automataC state1))
-     varErr <- orl (map (hasError . snd) (boolVarsC state1))
+     locErr <- orl (map (hasError . snd) (locMap state1))
+     varErr <- orl (map (hasError . snd) (boolVarMap state1))
      localError <- or2 locErr varErr 
      finalError <- or2 localError (globalError state1)
      
-     return $ head $ (map (latestVal . snd) (automataC state1))
+     return $ head $ (map (latestVal . snd) (locMap state1))
+
+
 
 processTransition :: CSynch -> (Transition, Name) -> L CSynch
 processTransition cs (t, an) =
  do
-  let auts = automataC cs
-      bvs = boolVarsC cs
-      evm = eventsC cs
+  let auts = locMap cs
+      bvs = boolVarMap cs
+      evm = eventMap cs
       eventRef = fromJust $ lookup (event t) evm
       cloc = fromJust $ lookup an auts
       i1 = start t
@@ -159,7 +138,7 @@ processTransition cs (t, an) =
       hasErr = hasError cloc
       newVal = [ff, tt]
   (lastVal', hasUpdated', hasError') <-
-    oneHotUpdate (lastVal, hasUd, hasErr, transFired, newVal)
+    updateRefs (lastVal, hasUd, hasErr, transFired, newVal)
   
   let newLoc' = replaceAtIndex i1 (lastVal!!0) (latestVal cloc)
       newLoc'' = replaceAtIndex i1 (lastVal!!1) newLoc'
@@ -170,9 +149,9 @@ processTransition cs (t, an) =
                             }
       auts' = replaceAt (an, newLocationState) auts
   
-  return SynchC { automataC = auts'
-                , boolVarsC = newBvs
-                , eventsC   = evm
+  return SynchC { locMap = auts'
+                , boolVarMap = newBvs
+                , eventMap   = evm
                 , globalError = blocked
                 }
 
@@ -201,7 +180,7 @@ updateToLava shouldUpdate bvs ud =
       hasErr = hasError boolVar
 
   (lastVal', hasUpdated', hasError') <-
-    singleRefUpdate (lastVal, hasUd, hasErr, shouldUpdate, newVal)
+    updateRef (lastVal, hasUd, hasErr, shouldUpdate, newVal)
     
   let newBoolVarState = CS { origVal = origVal boolVar
                            , latestVal = lastVal' 
@@ -222,8 +201,24 @@ replaceAtIndex :: Int -> a -> [a] -> [a]
 replaceAtIndex n item ls =
  a ++ (item:b) where (a, (_:b)) = splitAt n ls
 
+-- input: lastval, hasUpdated, hasError, shouldUpdate, newVal
+-- Output: lastval', hasUpdated', hasError'
+updateRefs :: ([Ref], Ref, Ref, Ref, [Ref]) -> L ([Ref], Ref, Ref)
+updateRefs (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
+ do
+    clash <- and2 shouldUpdate hasUpdated
+    hasError' <- or2 clash hasError
+    hasUpdated' <- or2 shouldUpdate hasUpdated
+    nextVal <- sequence $ map (mux shouldUpdate) (zip lastVal newVal)
+    return (nextVal, hasUpdated', hasError')
+
+updateRef :: (Ref, Ref, Ref, Ref, Ref) -> L (Ref, Ref, Ref)
+updateRef (a, b, c, d, e) =
+ do ([f],g,h) <- updateRefs([a],b,c,d,[e])
+    return (f,g,h)
+
 locationOH :: Automaton -> L OneHotFlop
-locationOH a = oneHotFlops (1, nbrLocations a)
+locationOH a = oneHotFlops (0, nbrLocations a)
 
 -- Input is (hot_value, #values)
 oneHotFlops :: (Int, Int) -> L OneHotFlop
@@ -232,7 +227,7 @@ oneHotFlops (val, max)
 -- almost always come up as an illegal one-hot array?
   | 0 <= val && val < max =
     let (L m0) = sequence [ flop (Just (i==val))
-                          | i <- [1..max] ]
+                          | i <- [0..(max-1)] ]
     in L (\n0 -> let (tups, n1, gs1) = m0 n0
                      (ins, outs)     = unzip tups
                      outApp          = (zipWith ($) outs)
