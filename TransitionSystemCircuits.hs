@@ -60,14 +60,15 @@ type BoolVarRefMap = [(BoolVar, Ref)]
 
 type EventRefMap = [(Event, Ref)]
 
+type MarkedRefMap = [(Name, Ref)]
+
 data SynchCircuit
   = SynchC
   { locRefs :: LocationsRefMap
   , boolVarRefs :: BoolVarRefMap
   , eventRefs   :: EventRefMap
+  , markedRefs :: MarkedRefMap
   , anyError :: Ref
-  , anyMarked :: Ref
-  , allMarked :: Ref
   }
  deriving ( Show )
 
@@ -77,7 +78,7 @@ processSystem :: Synchronisation -> [Ref] -> L SynchCircuit
 processSystem s ins =
    do 
      let evm = [(x, Pos x) | x <- allEvents s]
-         locNames = map autName (automata s)
+         autNames = map autName (automata s)
          boolVarNames = allBoolVars s
 
      -- create location state variables
@@ -89,7 +90,7 @@ processSystem s ins =
      
      -- create big clumsy object to pass around
      let auts = [ (name, (newState loc))
-                | ((loc, _), name) <- zip locFlops (map autName $ automata s) ]
+                | ((loc, _), name) <- zip locFlops autNames ]
          bvs = zip (allBoolVars s) (map (newState . fst) varFlops)
          state = PSC { locMap = auts
                      , boolVarMap = bvs
@@ -115,23 +116,44 @@ processSystem s ins =
      sequence_ $ zipWith ($)
        (map snd varFlops) newBoolVars
      
+     -- compute which automata are in marked states
+     markedRefs <- sequence $ map (checkMarked state1)
+                                  (automata s)
+     
+     let marked = zip autNames markedRefs
+     
      -- compute errors
      locErr <- orl (map (hasError . snd) (locMap state1))
      varErr <- orl (map (hasError . snd) (boolVarMap state1))
      localError <- or2 locErr varErr 
      finalError <- or2 localError (globalError state1)
      
-     let circuit = SynchC { locRefs = zip locNames newLocs
+     let circuit = SynchC { locRefs = zip autNames newLocs
                           , boolVarRefs = zip boolVarNames newBoolVars
                           , eventRefs = evm
+                          , markedRefs = marked
                           , anyError = finalError
-                          , anyMarked = ff
-                          , allMarked = ff
                           }
-     
      return circuit
 
 
+checkMarked :: PartialSynchCircuit -> (Automaton -> L Ref)
+checkMarked psc a =
+ do    
+    predicatesHold <- sequence $ map (checkPredicate psc (autName a))
+                                     (marked a)
+    orl predicatesHold
+
+checkPredicate :: PartialSynchCircuit -> Name -> (Predicate -> L Ref)
+checkPredicate psc nm (loc, gs) =
+ do
+    let locRefs = latestVal $ fromJust $ lookup nm (locMap psc)
+        rightLoc = locRefs!!loc
+        bvs = boolVarMap psc
+        bvrm = zip (map fst bvs) (map (latestVal . snd) bvs)
+    gs <- sequence $ map (guardToLava bvrm) gs
+    andl gs
+    
 
 processTransition :: PartialSynchCircuit -> (Transition, Name) -> L PartialSynchCircuit
 processTransition cs (t, an) =
@@ -149,7 +171,8 @@ processTransition cs (t, an) =
   transFired <- and2 eventRef (startLocRef)
           
   -- check all the guards
-  gs <- sequence $ map (guardToLava bvs) (guards t)
+  let bvrm = zip (map fst bvs) (map (origVal . snd) bvs)
+  gs <- sequence $ map (guardToLava bvrm) (guards t)
   clearedGuards <- andl gs
   blocked <- and2 transFired (neg clearedGuards)
   
@@ -186,12 +209,12 @@ processTransition cs (t, an) =
 
 
 
-guardToLava :: (BoolVarMap) -> Guard -> L Ref
-guardToLava bvm g = case (gval g) of
-                         (True) -> return $ ref
-                         (False) -> return $ neg $ ref
+guardToLava :: (BoolVarRefMap) -> Guard -> L Ref
+guardToLava bvrm g = case (gval g) of
+                          (True) -> return $ ref
+                          (False) -> return $ neg $ ref
  where
-  ref = origVal $ fromJust $ lookup (gvar g) (bvm)
+  ref = fromJust $ lookup (gvar g) (bvrm)
 
 
 

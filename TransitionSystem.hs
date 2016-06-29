@@ -73,8 +73,8 @@ boolVars a = nub $ concat $ map boolVars' (transitions a)
  where boolVars' t = (map gvar (guards t)) ++ (map uvar (updates t))
 
 
-synchronise :: Synchronisation -> Automaton -> Synchronisation
-synchronise s a =
+synchronise :: Automaton -> Synchronisation -> Synchronisation
+synchronise a s =
   Synch {automata = a:(automata s)
         , allEvents = union (allEvents s) (events a)
         , allBoolVars = union (allBoolVars s) (boolVars a)

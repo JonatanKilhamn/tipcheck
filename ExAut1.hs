@@ -69,5 +69,5 @@ exAut3 = Aut { autName = "a3"
              , marked = []
              }
 
-s1 = foldl synchronise emptySynch [exAut1, exAut3]
+s1 = foldr synchronise emptySynch [exAut1, exAut3]
 

@@ -13,7 +13,7 @@ philList :: [Automaton]
 philList = map philosopher [(i, nbrPhilosophers)
                            | i <- [0..nbrPhilosophers-1]]
 
-philSynch = foldl synchronise emptySynch philList
+philSynch = foldr synchronise emptySynch philList
 
 
 philosopher :: (Int,Int) -> Automaton
