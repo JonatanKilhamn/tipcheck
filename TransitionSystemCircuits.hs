@@ -9,7 +9,7 @@ import Lava
 import TransitionSystem
 import Control.Monad.State
 
-
+--------------------
 
 
 
@@ -38,8 +38,6 @@ type CLocation = CState OneHot
 type CBoolVar = CState Ref
 type CEvent = Ref
 
-eventInput :: [Event] -> EventMap
-eventInput = map (\x -> (x, Pos x))
 
 type LocationsMap = [(Name, CLocation)]
 
@@ -55,14 +53,13 @@ data CSynch
   , eventMap   :: EventMap
   , globalError :: Ref
   }
-  
 
 
-processSystem :: Synchronisation -> EventMap -> [Ref] -> L [Ref]
-processSystem s evm ins
- | (length evm) /= (length $ allEvents s) = error "Event array wrong length"
- | otherwise =
+processSystem :: Synchronisation -> [Ref] -> L [Ref]
+processSystem s ins =
    do 
+     let evm = [(x, Pos x) | x <- allEvents s]
+     
       -- create state variables
      varFlops <- sequence [ flop Nothing | var <- allBoolVars s ]
      
@@ -119,7 +116,6 @@ processTransition cs (t, an) =
       i1 = start t
       i2 = end t
       startLocRef = (origVal cloc) !! i1
-      
    
   -- check whether the event is fired
   transFired <- and2 eventRef (startLocRef)
@@ -140,8 +136,12 @@ processTransition cs (t, an) =
   (lastVal', hasUpdated', hasError') <-
     updateRefs (lastVal, hasUd, hasErr, transFired, newVal)
   
-  let newLoc' = replaceAtIndex i1 (lastVal!!0) (latestVal cloc)
-      newLoc'' = replaceAtIndex i1 (lastVal!!1) newLoc'
+
+  
+  let newLoc' = replaceAtIndex i1 (lastVal'!!0) (latestVal cloc)
+      newLoc'' = replaceAtIndex i2 (lastVal'!!1) newLoc'
+
+
   let newLocationState = CS { origVal = origVal cloc
                             , latestVal = newLoc'' 
                             , hasUpdated = hasUpdated'

@@ -6,7 +6,6 @@ import qualified Data.Map as Map
 import Data.List
 import qualified Control.Monad as C
 import Circuit
-import Lava
 
 --------------------
 
@@ -89,39 +88,6 @@ emptySynch = Synch {automata = []
 
 
 
-
---
--- Test instances
---
-
-g0 :: Guard
-g0 = Guard {gvar = undefined, gval = undefined}
-
-l1, l2 :: Location
-l1 = 0
-l2 = 1
-
-e1, e2, e3, e4 :: Event
-e1 = "a"
-e2 = "b"
-e3 = "c"
-e4 = "d"
-
-bvar1, bvar2 :: BoolVar
-bvar1 = "x"
-bvar2 = "y"
-
-u1 :: Update
-u1 = Update {uvar = bvar1, uval = False}
-
-t1, t2 :: Transition
-t1 = Trans {start=l1,event=e1,guards=[g0],updates=[],end=l2}
-t2 = Trans {start=l2,event=e2,guards=[g0],updates=[],end=l1}
-
-aut1 :: Automaton
-aut1 = Aut {autName = "foo",
-            nbrLocations = 2,
-            transitions = [t1,t2]}
 
 
 
