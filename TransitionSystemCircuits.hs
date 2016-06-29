@@ -46,36 +46,56 @@ type BoolVarMap = [(BoolVar, CBoolVar)]
 type EventMap = [(Event, CEvent)]
 
 
-data CSynch
-  = SynchC
+data PartialSynchCircuit
+  = PSC
   { locMap :: LocationsMap
   , boolVarMap :: BoolVarMap
   , eventMap   :: EventMap
   , globalError :: Ref
   }
 
+type LocationsRefMap = [(Name, OneHot)]
 
-processSystem :: Synchronisation -> [Ref] -> L [Ref]
+type BoolVarRefMap = [(BoolVar, Ref)]
+
+type EventRefMap = [(Event, Ref)]
+
+data SynchCircuit
+  = SynchC
+  { locRefs :: LocationsRefMap
+  , boolVarRefs :: BoolVarRefMap
+  , eventRefs   :: EventRefMap
+  , anyError :: Ref
+  , anyMarked :: Ref
+  , allMarked :: Ref
+  }
+ deriving ( Show )
+
+
+
+processSystem :: Synchronisation -> [Ref] -> L SynchCircuit
 processSystem s ins =
    do 
      let evm = [(x, Pos x) | x <- allEvents s]
-     
-      -- create state variables
-     varFlops <- sequence [ flop Nothing | var <- allBoolVars s ]
-     
+         locNames = map autName (automata s)
+         boolVarNames = allBoolVars s
+
      -- create location state variables
      locFlops <- sequence [ locationOH aut | aut <- automata s ]
      let locRefs = map fst locFlops
+
+      -- create state variables
+     varFlops <- sequence [ flop Nothing | var <- boolVarNames ]
      
      -- create big clumsy object to pass around
      let auts = [ (name, (newState loc))
                 | ((loc, _), name) <- zip locFlops (map autName $ automata s) ]
          bvs = zip (allBoolVars s) (map (newState . fst) varFlops)
-         state = SynchC { locMap = auts
-                        , boolVarMap = bvs
-                        , eventMap   = evm
-                        , globalError = ff
-                        }
+         state = PSC { locMap = auts
+                     , boolVarMap = bvs
+                     , eventMap   = evm
+                     , globalError = ff
+                     }
      
      -- process each transition
      let contextTrans = [ (t, aName)
@@ -86,14 +106,14 @@ processSystem s ins =
      state1 <- foldM processTransition state contextTrans
      
      -- set the updated location values
+     let newLocs = map (latestVal . snd) (locMap state1)
      sequence_ $ zipWith ($)
-       (map snd locFlops)
-       (map (latestVal . snd) (locMap state1))
+       (map snd locFlops) newLocs
        
      -- set the updated variable values
+     let newBoolVars = map (latestVal . snd) (boolVarMap state1)
      sequence_ $ zipWith ($)
-       (map snd varFlops)
-       (map (latestVal . snd) (boolVarMap state1))     
+       (map snd varFlops) newBoolVars
      
      -- compute errors
      locErr <- orl (map (hasError . snd) (locMap state1))
@@ -101,11 +121,19 @@ processSystem s ins =
      localError <- or2 locErr varErr 
      finalError <- or2 localError (globalError state1)
      
-     return $ head $ (map (latestVal . snd) (locMap state1))
+     let circuit = SynchC { locRefs = zip locNames newLocs
+                          , boolVarRefs = zip boolVarNames newBoolVars
+                          , eventRefs = evm
+                          , anyError = finalError
+                          , anyMarked = ff
+                          , allMarked = ff
+                          }
+     
+     return circuit
 
 
 
-processTransition :: CSynch -> (Transition, Name) -> L CSynch
+processTransition :: PartialSynchCircuit -> (Transition, Name) -> L PartialSynchCircuit
 processTransition cs (t, an) =
  do
   let auts = locMap cs
@@ -149,11 +177,11 @@ processTransition cs (t, an) =
                             }
       auts' = replaceAt (an, newLocationState) auts
   
-  return SynchC { locMap = auts'
-                , boolVarMap = newBvs
-                , eventMap   = evm
-                , globalError = blocked
-                }
+  return PSC { locMap = auts'
+             , boolVarMap = newBvs
+             , eventMap   = evm
+             , globalError = blocked
+             }
 
 
 

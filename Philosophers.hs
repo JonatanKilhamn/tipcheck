@@ -20,6 +20,7 @@ philosopher :: (Int,Int) -> Automaton
 philosopher (p, max) = Aut { autName = "p"++this
                            , nbrLocations = 2
                            , transitions = ts
+                           , marked = []
                            } 
  where
   this = show p

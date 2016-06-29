@@ -43,7 +43,7 @@ data Transition
   deriving ( Show )
 
 
---type State = (Location, [VarVal])
+type Predicate = (Location, [Guard])
 
 
 data Automaton
@@ -51,6 +51,7 @@ data Automaton
   { autName :: Name
   , nbrLocations :: Int
   , transitions :: [Transition]
+  , marked :: [Predicate]
   }
   deriving ( Show )
 
