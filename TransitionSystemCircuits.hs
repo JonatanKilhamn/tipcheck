@@ -76,10 +76,12 @@ data SynchCircuit
 
 processSystem :: Synchronisation -> [Ref] -> L SynchCircuit
 processSystem s ins =
-   do 
-     let evm = [(x, Pos x) | x <- allEvents s]
-         autNames = map autName (automata s)
+   do
+     -- input processing
+     evRefs <- sequence [ input | x <- allEvents s]
+     let autNames = map autName (automata s)
          boolVarNames = allBoolVars s
+         evm = zip (allEvents s) evRefs
 
      -- create location state variables
      locFlops <- sequence [ locationOH aut | aut <- automata s ]
