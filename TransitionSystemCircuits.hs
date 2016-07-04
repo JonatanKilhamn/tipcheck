@@ -147,6 +147,13 @@ processSystem s ins =
 -- TODO: handle blocking, in the sense that a synchronisation can only
 -- accept an event if each constituent automaton which uses that event
 -- is in a state fit to fire a transition with that event
+-- Elaboration: split processTransition into a function that processes
+-- one Automaton, and one that takes care of one transition. Tha
+-- processAutomaton function can then store the "enabled" ref for each
+-- transition, and in the end go through which events have an enabled
+-- transition. The higher level (processSystem) can then go over all
+-- automata, and raise an error if an event occurs which does not
+-- have an enabled transition in an automaton that has that event.
 
 processTransition :: PartialSynchCircuit -> (Transition, Name) ->
   L PartialSynchCircuit
@@ -168,6 +175,11 @@ processTransition cs (t, an) =
   let bvrm = zip (map fst bvs) (map (origVal . snd) bvs)
   gs <- sequence $ map (guardToLava bvrm) (guards t)
   
+  -- TODO: switch up blocked/enabled/allowed, so that
+  -- transFired = enabled && eventFired
+  -- The error from blockedness comes higher up the chain;
+  -- this allows a location to have two transitions with the
+  -- same event and mutually exclusive guards
   clearedGuards <- andl gs
   blocked <- and2 transFired (neg clearedGuards)
   
