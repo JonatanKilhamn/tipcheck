@@ -148,7 +148,8 @@ processSystem s ins =
 -- accept an event if each constituent automaton which uses that event
 -- is in a state fit to fire a transition with that event
 
-processTransition :: PartialSynchCircuit -> (Transition, Name) -> L PartialSynchCircuit
+processTransition :: PartialSynchCircuit -> (Transition, Name) ->
+  L PartialSynchCircuit
 processTransition cs (t, an) =
  do
   let auts = locMap cs

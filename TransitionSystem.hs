@@ -46,6 +46,12 @@ data Transition
 type Predicate = (Location, [Guard])
 
 
+-- TODO: current structure does not prohibit one automaton
+-- from having several transitions from the same location,
+-- firing on the same event – i.e. nondeterminism. In the
+-- circuit translation, such a situation would be treated
+-- as an error, when two transitions try to update the same
+-- location variable. 
 data Automaton
   = Aut
   { autName :: Name
