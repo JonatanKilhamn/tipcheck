@@ -67,6 +67,7 @@ data Synchronisation
 
 events :: Automaton -> [Event]
 events a = nub $ map event (transitions a)
+-- TODO: nub is quadratic – we can do better
 
 boolVars :: Automaton -> [Event]
 boolVars a = nub $ concat $ map boolVars' (transitions a)
