@@ -41,7 +41,11 @@ run (L m) = (x, gs)
   (x, _, gs) = m 0
 
 and2 :: Ref -> Ref -> L Ref
-and2 x y =
+and2 x y 
+ | x == ff || y == ff = return ff
+ | x == tt = return y
+ | y == tt = return x
+ | otherwise =
   L (\n -> let z = "X" ++ show n
             in n `seq` (Pos z, n+1, [(z, And x y)]))
 
@@ -105,11 +109,19 @@ eql (x:xs) (y:ys) =
      es <- eql xs ys
      and2 e es
      
-multi_xor :: [Ref] -> L Ref
-multi_xor [] = return ff
-multi_xor (x:xs) =
- do a <- multi_xor xs
-    xor2 x a
+isOH :: [Ref] -> L Ref
+isOH xs =
+ do (atLeastOne, moreThanOne) <- isOH' xs
+    and2 atLeastOne (neg moreThanOne)
+
+isOH' :: [Ref] -> L (Ref, Ref)
+isOH' [] = return (ff, ff)
+isOH' (x:xs) =
+ do (prevXor, prevAnd) <- isOH' xs
+    newXor <- xor2 x prevXor
+    newAnd <- and2 x prevXor
+    anyAnd <- or2 newAnd prevAnd
+    return (newXor, anyAnd)
 
 flop0, flop1, flopX :: L (Ref, Ref -> L ())
 flop0 = flop (Just False)
