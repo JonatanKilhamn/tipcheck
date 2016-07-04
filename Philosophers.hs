@@ -4,6 +4,8 @@ import TransitionSystem
 import TransitionSystemCircuits
 import Lava
 import Data.Maybe
+import Circuit
+import Control.Monad
 
 -- Dining philosophers
 
@@ -76,13 +78,13 @@ philosopher (p, max) = Aut { autName = "p"++this
 
 
 
-philsC :: Int -> L SynchCircuit
-philsC n = processSystem (philSynch n) []
+phils :: Int -> L SynchCircuit
+phils n = processSystem (philSynch n) []
 
-philsC_prop :: Int -> L Props
-philsC_prop n =
+phils_prop :: Int -> L Props
+phils_prop n =
   do -- the circuit
-     sc <- philsC n
+     sc <- phils n
      
      -- never two phils holding the same fork
      held_twice <- sequence
@@ -91,9 +93,19 @@ philsC_prop n =
                    ]
      b1 <- orl held_twice
      
+     
+     
+     let err = anyError sc
+     
+     bad <- and2 b1 (neg err)
+     
+     -- each philosopher gets to eat infinitely often
+     -- TODO
+     
      -- props
      return $ props
-       { nevers  = [b1]
+       { always = [neg err]
+       , nevers  = [b1] --map snd $ boolVarRefs sc
        , finites = []
        }
  where
@@ -102,3 +114,47 @@ philsC_prop n =
    right p = show $ (p+1) `mod` n
    holdingLeft sc p = fromJust $ lookup ("hl"++this p) (boolVarRefs sc)
    heldByLeft sc p = fromJust $ lookup ("hr"++left p) (boolVarRefs sc)
+   
+
+phils_c :: Int -> Circuit
+phils_c = circuit . phils_prop   
+   
+--------------------------------------------------------------------------------
+-- Step example
+
+
+
+
+oneHotBool :: (Int, Int) -> [Bool]
+oneHotBool (val, max) = [ if (i == val) then True else False | i <- [1..max] ]
+
+-- Output: last_constrs, bads, Circuit
+stepsPhils :: Int -> [[Bool]] -> (Bool,[Bool],Circuit)
+stepsPhils n inputs = foldl foldableSteps (False,[],phils_c n) inputs
+ where
+  size = length $ head inputs
+  foldableSteps (_,_,c) ins = step c (none size) ins
+
+
+none :: Int -> [Bool]
+none = flip replicate False
+
+tl1, tr1, eat1, pd1, tl0, tr0, eat0, pd0 :: [Bool]
+{-tl0 = oneHotBool (1,4)
+tr0 = oneHotBool (2,4)
+eat0 = oneHotBool (3,4)
+pd0 = oneHotBool (4,4)-}
+tl1 = oneHotBool (1,8)
+tr1 = oneHotBool (2,8)
+eat1 = oneHotBool (3,8)
+pd1 = oneHotBool (4,8)
+tl0 = oneHotBool (5,8)
+tr0 = oneHotBool (6,8)
+eat0 = oneHotBool (7,8)
+pd0 = oneHotBool (8,8)
+
+fstpair3 :: (a,b,c) -> (a,b)
+fstpair3 (a,b,c) = (a,b)
+
+--step c (replicate 8 False) (replicate 8 False)
+

@@ -79,6 +79,7 @@ processSystem s ins =
    do
      -- input processing
      evRefs <- sequence [ input | x <- allEvents s]
+
      let autNames = map autName (automata s)
          boolVarNames = allBoolVars s
          evm = zip (allEvents s) evRefs
@@ -88,7 +89,7 @@ processSystem s ins =
      let locRefs = map fst locFlops
 
       -- create state variables
-     varFlops <- sequence [ flop Nothing | var <- boolVarNames ]
+     varFlops <- sequence [ flop0 | var <- boolVarNames ]
      
      -- create big clumsy object to pass around
      let auts = [ (name, (newState loc))
@@ -121,15 +122,18 @@ processSystem s ins =
      -- compute which automata are in marked states
      markedRefs <- sequence $ map (checkMarked state1)
                                   (automata s)
-     
      let marked = zip autNames markedRefs
      
      -- compute errors
      locErr <- orl (map (hasError . snd) (locMap state1))
      varErr <- orl (map (hasError . snd) (boolVarMap state1))
-     localError <- or2 locErr varErr 
-     finalError <- or2 localError (globalError state1)
+     localError <- or2 locErr varErr
      
+     validInput <- isOH evRefs
+     error1 <- or2 localError (neg validInput)
+     finalError <- or2 error1 (globalError state1)
+     
+     -- output
      let circuit = SynchC { locRefs = zip autNames newLocs
                           , boolVarRefs = zip boolVarNames newBoolVars
                           , eventRefs = evm
@@ -139,23 +143,10 @@ processSystem s ins =
      return circuit
 
 
-checkMarked :: PartialSynchCircuit -> (Automaton -> L Ref)
-checkMarked psc a =
- do    
-    predicatesHold <- sequence $ map (checkPredicate psc (autName a))
-                                     (marked a)
-    orl predicatesHold
 
-checkPredicate :: PartialSynchCircuit -> Name -> (Predicate -> L Ref)
-checkPredicate psc nm (loc, gs) =
- do
-    let locRefs = latestVal $ fromJust $ lookup nm (locMap psc)
-        rightLoc = locRefs!!loc
-        bvs = boolVarMap psc
-        bvrm = zip (map fst bvs) (map (latestVal . snd) bvs)
-    gs <- sequence $ map (guardToLava bvrm) gs
-    andl gs
-    
+-- TODO: handle blocking, in the sense that a synchronisation can only
+-- accept an event if each constituent automaton which uses that event
+-- is in a state fit to fire a transition with that event
 
 processTransition :: PartialSynchCircuit -> (Transition, Name) -> L PartialSynchCircuit
 processTransition cs (t, an) =
@@ -168,13 +159,14 @@ processTransition cs (t, an) =
       i1 = start t
       i2 = end t
       startLocRef = (origVal cloc) !! i1
-   
+  
   -- check whether the event is fired
-  transFired <- and2 eventRef (startLocRef)
-          
+  transFired <- and2 eventRef startLocRef
+  
   -- check all the guards
   let bvrm = zip (map fst bvs) (map (origVal . snd) bvs)
   gs <- sequence $ map (guardToLava bvrm) (guards t)
+  
   clearedGuards <- andl gs
   blocked <- and2 transFired (neg clearedGuards)
   
@@ -202,24 +194,44 @@ processTransition cs (t, an) =
                             }
       auts' = replaceAt (an, newLocationState) auts
   
+  globalError' <- or2 (globalError cs) blocked
+  
   return PSC { locMap = auts'
              , boolVarMap = newBvs
              , eventMap   = evm
-             , globalError = blocked
+             , globalError = globalError'
              }
 
 
 
 
+
+
+
+checkMarked :: PartialSynchCircuit -> (Automaton -> L Ref)
+checkMarked psc a =
+ do    
+    predicatesHold <- sequence $ map (checkPredicate psc (autName a))
+                                     (marked a)
+    orl predicatesHold
+
+
+checkPredicate :: PartialSynchCircuit -> Name -> (Predicate -> L Ref)
+checkPredicate psc nm (loc, gs) =
+ do
+    let locRefs = latestVal $ fromJust $ lookup nm (locMap psc)
+        rightLoc = locRefs!!loc
+        bvs = boolVarMap psc
+        bvrm = zip (map fst bvs) (map (latestVal . snd) bvs)
+    gs <- sequence $ map (guardToLava bvrm) gs
+    andl gs
+    
 guardToLava :: (BoolVarRefMap) -> Guard -> L Ref
 guardToLava bvrm g = case (gval g) of
                           (True) -> return $ ref
                           (False) -> return $ neg $ ref
  where
   ref = fromJust $ lookup (gvar g) (bvrm)
-
-
-
 
 
 updateToLava :: Ref -> BoolVarMap -> Update -> L BoolVarMap
@@ -269,6 +281,10 @@ updateRef :: (Ref, Ref, Ref, Ref, Ref) -> L (Ref, Ref, Ref)
 updateRef (a, b, c, d, e) =
  do ([f],g,h) <- updateRefs([a],b,c,d,[e])
     return (f,g,h)
+
+
+
+
 
 locationOH :: Automaton -> L OneHotFlop
 locationOH a = oneHotFlops (0, nbrLocations a)
