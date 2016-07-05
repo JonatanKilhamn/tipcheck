@@ -151,35 +151,28 @@ processAutomaton state a =
       cloc = fromJust $ lookup an auts
       getEventRef t = fromJust $ lookup (event t) evm
 
+  -- create refs signifying which transitions are enabled
   enableds <- sequence $ map (isEnabledTransition cloc bvm) trans
-  
+  -- refs signifying which transitions are fired
   fireds <- sequence $ zipWith and2 (map getEventRef trans) enableds
   
-  let augmTrans = zip trans fireds
+  let transAndFireds = zip trans fireds
   
-  cloc' <- foldM locationUpdate cloc augmTrans
-  
+  -- update locations
+  cloc' <- foldM locationUpdate cloc transAndFireds
   let auts' = replaceAt (an, cloc') auts
   
-  bvm' <- foldM (varUpdates cloc') bvm augmTrans
+  -- update state variables
+  bvm' <- foldM varUpdates bvm transAndFireds
+      
+  -- find errors stemming from a blocking automaton
+  autError <- isBlocked evm a enableds
+  globalError' <- or2 autError (globalError state)
   
-  return PSC { locMap = auts'
-             , boolVarMap = bvm'
-             , eventMap   = evm
-             , globalError = globalError state
-             }
-
-
--- TODO: handle blocking, in the sense that a synchronisation can only
--- accept an event if each constituent automaton which uses that event
--- is in a state fit to fire a transition with that event
--- Elaboration: split processTransition into a function that processes
--- one Automaton, and one that takes care of one transition. The
--- processAutomaton function can then store the "enabled" ref for each
--- transition, and in the end go through which events have an enabled
--- transition. The higher level (processSystem) can then go over all
--- automata, and raise an error if an event occurs which does not
--- have an enabled transition in an automaton that has that event.
+  return state { locMap = auts'
+               , boolVarMap = bvm'
+               , globalError = globalError'
+               }
 
 isEnabledTransition :: CLocation -> BoolVarMap -> Transition ->
   L Ref
@@ -192,8 +185,8 @@ isEnabledTransition cloc bvm t =
   gs <- sequence $ map (guardToLava bvrm) (guards t)
   clearedGuards <- andl gs
   and2 startLocRef clearedGuards
- 
- 
+
+
 locationUpdate :: CLocation -> (Transition, Ref) -> L CLocation
 locationUpdate cloc (t, fired) =
  do
@@ -218,13 +211,31 @@ locationUpdate cloc (t, fired) =
             , hasError = hasError'
             }
 
-varUpdates :: CLocation -> BoolVarMap -> (Transition, Ref) ->
+
+varUpdates :: BoolVarMap -> (Transition, Ref) ->
   L BoolVarMap
-varUpdates cloc bvm (t, fired) =
+varUpdates bvm (t, fired) =
  foldM (updateToLava fired) bvm (updates t)
 
 
+isBlocked :: EventMap -> Automaton -> [Ref] -> L Ref
+isBlocked evm a enabled =
+ do
+  let trans = transitions a
+      
+  enabledEvents <- sequence $
+                    [ orl
+                     [ enabledRef
+                     | (t, enabledRef) <- zip trans enabled,
+                       e == event t
+                     ]
+                    | e <- events a
+                    ]
 
+  let eventRefs = map (fromJust . flip lookup evm) (events a)
+  blockedEvents <- sequence $ zipWith and2 eventRefs (map neg enabledEvents)
+  
+  orl blockedEvents
 
 
 
