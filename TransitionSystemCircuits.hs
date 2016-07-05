@@ -101,13 +101,8 @@ processSystem s ins =
                      , globalError = ff
                      }
      
-     -- process each transition
-     let contextTrans = [ (t, aName)
-                        | a <- automata s,
-                          t <- transitions a,
-                          let aName = autName a
-                        ]
-     state1 <- foldM processTransition state contextTrans
+     -- process each automaton
+     state1 <- foldM processAutomaton state (automata s)
      
      -- set the updated location values
      let newLocs = map (latestVal . snd) (locMap state1)
@@ -144,47 +139,67 @@ processSystem s ins =
 
 
 
+processAutomaton :: PartialSynchCircuit -> Automaton ->
+  L PartialSynchCircuit
+processAutomaton state a =
+ do
+  let trans = transitions a
+      bvm = boolVarMap state
+      evm = eventMap state
+      auts = locMap state
+      an = autName a
+      cloc = fromJust $ lookup an auts
+      getEventRef t = fromJust $ lookup (event t) evm
+
+  enableds <- sequence $ map (isEnabledTransition cloc bvm) trans
+  
+  fireds <- sequence $ zipWith and2 (map getEventRef trans) enableds
+  
+  let augmTrans = zip trans fireds
+  
+  cloc' <- foldM locationUpdate cloc augmTrans
+  
+  let auts' = replaceAt (an, cloc') auts
+  
+  bvm' <- foldM (varUpdates cloc') bvm augmTrans
+  
+  return PSC { locMap = auts'
+             , boolVarMap = bvm'
+             , eventMap   = evm
+             , globalError = globalError state
+             }
+
+
 -- TODO: handle blocking, in the sense that a synchronisation can only
 -- accept an event if each constituent automaton which uses that event
 -- is in a state fit to fire a transition with that event
 -- Elaboration: split processTransition into a function that processes
--- one Automaton, and one that takes care of one transition. Tha
+-- one Automaton, and one that takes care of one transition. The
 -- processAutomaton function can then store the "enabled" ref for each
 -- transition, and in the end go through which events have an enabled
 -- transition. The higher level (processSystem) can then go over all
 -- automata, and raise an error if an event occurs which does not
 -- have an enabled transition in an automaton that has that event.
 
-processTransition :: PartialSynchCircuit -> (Transition, Name) ->
-  L PartialSynchCircuit
-processTransition cs (t, an) =
+isEnabledTransition :: CLocation -> BoolVarMap -> Transition ->
+  L Ref
+isEnabledTransition cloc bvm t =
  do
-  let auts = locMap cs
-      bvs = boolVarMap cs
-      evm = eventMap cs
-      eventRef = fromJust $ lookup (event t) evm
-      cloc = fromJust $ lookup an auts
-      i1 = start t
-      i2 = end t
-      startLocRef = (origVal cloc) !! i1
-  
-  -- check whether the event is fired
-  transFired <- and2 eventRef startLocRef
+  let startLocRef = (origVal cloc) !! (start t)
   
   -- check all the guards
-  let bvrm = zip (map fst bvs) (map (origVal . snd) bvs)
+  let bvrm = zip (map fst bvm) (map (origVal . snd) bvm)
   gs <- sequence $ map (guardToLava bvrm) (guards t)
-  
-  -- TODO: switch up blocked/enabled/allowed, so that
-  -- transFired = enabled && eventFired
-  -- The error from blockedness comes higher up the chain;
-  -- this allows a location to have two transitions with the
-  -- same event and mutually exclusive guards
   clearedGuards <- andl gs
-  blocked <- and2 transFired (neg clearedGuards)
-  
-  newBvs <- foldM (updateToLava transFired) bvs (updates t)
-  
+  and2 startLocRef clearedGuards
+ 
+ 
+locationUpdate :: CLocation -> (Transition, Ref) -> L CLocation
+locationUpdate cloc (t, fired) =
+ do
+  let i1 = start t
+      i2 = end t
+      startLocRef = (origVal cloc) !! i1
   -- update locations
   -- input: lastval, hasUpdated, hasError, shouldUpdate, newVal
   let lastVal = map ((latestVal cloc) !!) [i1, i2]
@@ -192,29 +207,21 @@ processTransition cs (t, an) =
       hasErr = hasError cloc
       newVal = [ff, tt]
   (lastVal', hasUpdated', hasError') <-
-    updateRefs (lastVal, hasUd, hasErr, transFired, newVal)
-  
-
+    updateRefs (lastVal, hasUd, hasErr, fired, newVal)
   
   let newLoc' = replaceAtIndex i1 (lastVal'!!0) (latestVal cloc)
       newLoc'' = replaceAtIndex i2 (lastVal'!!1) newLoc'
 
+  return CS { origVal = origVal cloc
+            , latestVal = newLoc'' 
+            , hasUpdated = hasUpdated'
+            , hasError = hasError'
+            }
 
-  let newLocationState = CS { origVal = origVal cloc
-                            , latestVal = newLoc'' 
-                            , hasUpdated = hasUpdated'
-                            , hasError = hasError'
-                            }
-      auts' = replaceAt (an, newLocationState) auts
-  
-  globalError' <- or2 (globalError cs) blocked
-  
-  return PSC { locMap = auts'
-             , boolVarMap = newBvs
-             , eventMap   = evm
-             , globalError = globalError'
-             }
-
+varUpdates :: CLocation -> BoolVarMap -> (Transition, Ref) ->
+  L BoolVarMap
+varUpdates cloc bvm (t, fired) =
+ foldM (updateToLava fired) bvm (updates t)
 
 
 
