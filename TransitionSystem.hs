@@ -39,6 +39,7 @@ data Transition
   , guards  :: [Guard]
   , updates :: [Update]
   , end     :: Location
+  , uncontrollable :: Bool
   }
   deriving ( Show )
 

@@ -45,7 +45,12 @@ type BoolVarMap = [(BoolVar, CBoolVar)]
 
 type EventMap = [(Event, CEvent)]
 
-
+-- TODO: aggregating uncontrollability is probably done easiest
+-- similarly to aggregating error for each CState (i.e. location of bvar).
+-- In other words, have an initial ff "uncontrollability" Ref, and
+-- then for each transition add a new one as per
+--   new <- or2 old new_is_uncontrollable
+-- or alternatively get a list uncontrollables and take orl.
 data PartialSynchCircuit
   = PSC
   { locMap :: LocationsMap
@@ -157,6 +162,9 @@ processAutomaton state a =
   fireds <- sequence $ zipWith and2 (map getEventRef trans) enableds
   
   let transAndFireds = zip trans fireds
+  
+  -- TODO: transAndFireds could probably be used to update the
+  -- uncontrollability info
   
   -- update locations
   cloc' <- foldM locationUpdate cloc transAndFireds

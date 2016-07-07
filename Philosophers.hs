@@ -43,24 +43,28 @@ philosopher (p, max) = Aut { autName = "p"++this
                    , guards = takeLeftGuards
                    , updates = [Update ("hl"++this) True]
                    , end = 0
+                   , uncontrollable = False
                    }
   takeRight = Trans { start = 0
                     , event = "tr"++this
                     , guards = takeRightGuards
                     , updates = [Update ("hr"++this) True]
                     , end = 0
+                    , uncontrollable = False
                     }
   eat = Trans { start = 0
               , event = "eat"++this
               , guards = eatGuards
               , updates = []
               , end = 1
+              , uncontrollable = True
               }
   putDown = Trans { start = 1
                   , event = "pd"++this
                   , guards = []
                   , updates = putDownUpdates
                   , end = 0
+                  , uncontrollable = False
                   }
   takeLeftGuards = [ Guard ("hl"++this) False
                    , Guard ("hr"++left) False]
