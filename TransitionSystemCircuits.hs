@@ -45,18 +45,13 @@ type BoolVarMap = [(BoolVar, CBoolVar)]
 
 type EventMap = [(Event, CEvent)]
 
--- TODO: aggregating uncontrollability is probably done easiest
--- similarly to aggregating error for each CState (i.e. location of bvar).
--- In other words, have an initial ff "uncontrollability" Ref, and
--- then for each transition add a new one as per
---   new <- or2 old new_is_uncontrollable
--- or alternatively get a list uncontrollables and take orl.
 data PartialSynchCircuit
   = PSC
   { locMap :: LocationsMap
   , boolVarMap :: BoolVarMap
   , eventMap   :: EventMap
   , globalError :: Ref
+  , uncontr :: Ref
   }
 
 type LocationsRefMap = [(Name, OneHot)]
@@ -74,6 +69,7 @@ data SynchCircuit
   , eventRefs   :: EventRefMap
   , markedRefs :: MarkedRefMap
   , anyError :: Ref
+  , anyUncontr :: Ref
   }
  deriving ( Show )
 
@@ -104,6 +100,7 @@ processSystem s ins =
                      , boolVarMap = bvs
                      , eventMap   = evm
                      , globalError = ff
+                     , uncontr = ff
                      }
      
      -- process each automaton
@@ -139,6 +136,7 @@ processSystem s ins =
                           , eventRefs = evm
                           , markedRefs = marked
                           , anyError = finalError
+                          , anyUncontr = (uncontr state1)
                           }
      return circuit
 
@@ -162,16 +160,17 @@ processAutomaton state a =
   fireds <- sequence $ zipWith and2 (map getEventRef trans) enableds
   
   let transAndFireds = zip trans fireds
-  
-  -- TODO: transAndFireds could probably be used to update the
-  -- uncontrollability info
-  
+    
   -- update locations
   cloc' <- foldM locationUpdate cloc transAndFireds
   let auts' = replaceAt (an, cloc') auts
   
   -- update state variables
   bvm' <- foldM varUpdates bvm transAndFireds
+  
+  -- update controllability
+  uncontrFound <- orl [ f | (t, f) <- transAndFireds, uncontrollable t ]
+  uncontr' <- or2 uncontrFound (uncontr state)
       
   -- find errors stemming from a blocking automaton
   autError <- isBlocked evm a enableds
@@ -180,6 +179,7 @@ processAutomaton state a =
   return state { locMap = auts'
                , boolVarMap = bvm'
                , globalError = globalError'
+               , uncontr = uncontr'
                }
 
 isEnabledTransition :: CLocation -> BoolVarMap -> Transition ->
@@ -224,7 +224,6 @@ varUpdates :: BoolVarMap -> (Transition, Ref) ->
   L BoolVarMap
 varUpdates bvm (t, fired) =
  foldM (updateToLava fired) bvm (updates t)
-
 
 isBlocked :: EventMap -> Automaton -> [Ref] -> L Ref
 isBlocked evm a enabled =

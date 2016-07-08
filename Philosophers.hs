@@ -97,6 +97,7 @@ phils_prop n =
                    ]
      b1 <- orl held_twice
      
+     let uc = anyUncontr sc
      
      
      let err = anyError sc
@@ -109,7 +110,7 @@ phils_prop n =
      -- props
      return $ props
        { always = [neg err]
-       , nevers  = [b1] --map snd $ boolVarRefs sc
+       , nevers  = [uc] --map snd $ boolVarRefs sc
        , finites = []
        }
  where
