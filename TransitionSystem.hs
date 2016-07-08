@@ -6,9 +6,16 @@ import qualified Data.Map as Map
 import Data.List
 import qualified Control.Monad as C
 import Circuit
+import qualified Data.Set as Set
 
 --------------------
 
+ordNub :: (Ord a) => [a] -> [a]
+ordNub l = go Set.empty l
+  where
+    go _ [] = []
+    go s (x:xs) = if x `Set.member` s then go s xs
+                                      else x : go (Set.insert x s) xs
 
 -- Only boolean state variables so far
 -- Only constants for the right-hand sides of guards and updates
@@ -73,8 +80,8 @@ data Synchronisation
  deriving ( Show )
 
 events :: Automaton -> [Event]
-events a = nub $ map event (transitions a)
--- TODO: nub is quadratic – we can do better
+events a = ordNub $ map event (transitions a)
+
 
 boolVars :: Automaton -> [Event]
 boolVars a = nub $ concat $ map boolVars' (transitions a)
