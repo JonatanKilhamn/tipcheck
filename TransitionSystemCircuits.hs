@@ -8,6 +8,7 @@ import Circuit
 import Lava
 import TransitionSystem
 import Control.Monad.State
+import qualified Data.Map as M
 
 --------------------
 
@@ -82,7 +83,7 @@ processSystem s ins =
      evRefs <- sequence [ input | x <- allEvents s]
 
      let autNames = map autName (automata s)
-         boolVarNames = allBoolVars s
+         boolVarNames = M.keys (allBoolVars s)
          evm = zip (allEvents s) evRefs
 
      -- create location state variables
@@ -90,12 +91,14 @@ processSystem s ins =
      let locRefs = map fst locFlops
 
       -- create state variables
-     varFlops <- sequence [ flop0 | var <- boolVarNames ]
+     varFlops <- sequence [ flop $ Just $ (allBoolVars s) M.! var
+                          | var <- boolVarNames
+                          ]
      
      -- create big clumsy object to pass around
      let auts = [ (name, (newState loc))
                 | ((loc, _), name) <- zip locFlops autNames ]
-         bvs = zip (allBoolVars s) (map (newState . fst) varFlops)
+         bvs = zip boolVarNames (map (newState . fst) varFlops)
          state = PSC { locMap = auts
                      , boolVarMap = bvs
                      , eventMap   = evm

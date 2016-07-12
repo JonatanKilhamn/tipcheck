@@ -2,7 +2,7 @@ module TransitionSystem where
 
 import Data.Maybe
 import Data.Function
-import qualified Data.Map as Map
+import qualified Data.Map as M
 import Data.List
 import qualified Control.Monad as C
 import Circuit
@@ -22,19 +22,20 @@ ordNub l = go Set.empty l
 
 type Event = Name
 type BoolVar = Name
+type Value = Bool
 type Location = Int
 
 data Guard
   = Guard
   { gvar  :: BoolVar
-  , gval  :: Bool
+  , gval  :: Value
   }
   deriving ( Show, Eq )
 
 data Update
   = Update
   { uvar :: BoolVar
-  , uval :: Bool
+  , uval :: Value
   }
   deriving ( Show, Eq )
 
@@ -75,7 +76,7 @@ data Synchronisation
   = Synch
   { automata :: [Automaton]
   , allEvents   :: [Event]
-  , allBoolVars :: [BoolVar]
+  , allBoolVars :: M.Map BoolVar Value
   }
  deriving ( Show )
 
@@ -83,22 +84,29 @@ events :: Automaton -> [Event]
 events a = ordNub $ map event (transitions a)
 
 
-boolVars :: Automaton -> [Event]
-boolVars a = nub $ concat $ map boolVars' (transitions a)
- where boolVars' t = (map gvar (guards t)) ++ (map uvar (updates t))
+boolVars :: Automaton -> M.Map BoolVar Value
+boolVars a = M.fromList $ zip varNames (repeat False)
+ where varNames = nub $ concat $ map varNames' (transitions a)
+       varNames' t = (map gvar (guards t)) ++ (map uvar (updates t))
 
 
 synchronise :: Automaton -> Synchronisation -> Synchronisation
 synchronise a s =
   Synch {automata = a:(automata s)
         , allEvents = union (allEvents s) (events a)
-        , allBoolVars = union (allBoolVars s) (boolVars a)
+        , allBoolVars = M.unionWith takeFirst (allBoolVars s) (boolVars a)
         }
+ where takeFirst = flip seq
+
+setDefault :: (BoolVar, Value) -> Synchronisation -> Synchronisation
+setDefault (bv, v) s = s {allBoolVars = M.update (\_ -> Just v) bv (allBoolVars s)
+                         }
+-- TODO update the default value
 
 emptySynch :: Synchronisation
 emptySynch = Synch {automata = []
                    , allEvents = []
-                   , allBoolVars = []
+                   , allBoolVars = M.empty
                    }
 
 
