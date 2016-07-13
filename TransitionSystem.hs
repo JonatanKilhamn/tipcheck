@@ -86,7 +86,7 @@ events a = ordNub $ map event (transitions a)
 
 boolVars :: Automaton -> M.Map BoolVar Value
 boolVars a = M.fromList $ zip varNames (repeat False)
- where varNames = nub $ concat $ map varNames' (transitions a)
+ where varNames = ordNub $ concat $ map varNames' (transitions a)
        varNames' t = (map gvar (guards t)) ++ (map uvar (updates t))
 
 
