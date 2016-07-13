@@ -6,16 +6,16 @@ import qualified Data.Map as M
 import Data.List
 import qualified Control.Monad as C
 import Circuit
-import qualified Data.Set as Set
+import qualified Data.Set as S
 
 --------------------
 
 ordNub :: (Ord a) => [a] -> [a]
-ordNub l = go Set.empty l
+ordNub l = go S.empty l
   where
     go _ [] = []
-    go s (x:xs) = if x `Set.member` s then go s xs
-                                      else x : go (Set.insert x s) xs
+    go s (x:xs) = if x `S.member` s then go s xs
+                                    else x : go (S.insert x s) xs
 
 -- Only boolean state variables so far
 -- Only constants for the right-hand sides of guards and updates
@@ -23,7 +23,8 @@ ordNub l = go Set.empty l
 type Event = Name
 type BoolVar = Name
 type Value = Bool
-type Location = Int
+-- Location names only need to be unique within the automaton
+type Location = Name
 
 data Guard
   = Guard
@@ -64,9 +65,10 @@ type Predicate = (Location, [Guard])
 data Automaton
   = Aut
   { autName :: Name
-  , nbrLocations :: Int
+  , locations :: S.Set Location
   , transitions :: [Transition]
   , marked :: [Predicate]
+  , initialLocation:: Location
   }
   deriving ( Show )
 
@@ -108,6 +110,7 @@ emptySynch = Synch {automata = []
                    , allEvents = []
                    , allBoolVars = M.empty
                    }
+
 
 
 

@@ -9,17 +9,23 @@ import Lava
 import TransitionSystem
 import Control.Monad.State
 import qualified Data.Map as M
+import qualified Data.Set as S
+import GHC.Exts
+
+
+
 
 --------------------
 
 
 
 type OneHot = [Ref]
+type IndexedOneHot k = [(k, Ref)]
 type Bin = [Ref]
 type Un = [Ref]
 
 type OneHotFlop = (OneHot, OneHot -> L ())
-
+type IndexedOneHotFlop k = (IndexedOneHot k, (IndexedOneHot k) -> L ())
 
 data CState k = CS { origVal   :: k
                    , latestVal :: k
@@ -35,7 +41,7 @@ newState a = CS { origVal = a
                 , hasError = ff
                 }
 
-type CLocation = CState OneHot
+type CLocation = CState (IndexedOneHot Location)
 type CBoolVar = CState Ref
 type CEvent = Ref
 
@@ -55,7 +61,7 @@ data PartialSynchCircuit
   , uncontr :: Ref
   }
 
-type LocationsRefMap = [(Name, OneHot)]
+type LocationRefMap = [(Name, IndexedOneHot Location)]
 
 type BoolVarRefMap = [(BoolVar, Ref)]
 
@@ -65,7 +71,7 @@ type MarkedRefMap = [(Name, Ref)]
 
 data SynchCircuit
   = SynchC
-  { locRefs :: LocationsRefMap
+  { locRefs :: LocationRefMap
   , boolVarRefs :: BoolVarRefMap
   , eventRefs   :: EventRefMap
   , markedRefs :: MarkedRefMap
@@ -108,12 +114,12 @@ processSystem s ins =
      
      -- process each automaton
      state1 <- foldM processAutomaton state (automata s)
-     
+
      -- set the updated location values
      let newLocs = map (latestVal . snd) (locMap state1)
      sequence_ $ zipWith ($)
        (map snd locFlops) newLocs
-       
+
      -- set the updated variable values
      let newBoolVars = map (latestVal . snd) (boolVarMap state1)
      sequence_ $ zipWith ($)
@@ -189,7 +195,7 @@ isEnabledTransition :: CLocation -> BoolVarMap -> Transition ->
   L Ref
 isEnabledTransition cloc bvm t =
  do
-  let startLocRef = (origVal cloc) !! (start t)
+  let startLocRef = fromJust $ lookup (start t) (origVal cloc)
   
   -- check all the guards
   let bvrm = zip (map fst bvm) (map (origVal . snd) bvm)
@@ -197,24 +203,23 @@ isEnabledTransition cloc bvm t =
   clearedGuards <- andl gs
   and2 startLocRef clearedGuards
 
-
 locationUpdate :: CLocation -> (Transition, Ref) -> L CLocation
 locationUpdate cloc (t, fired) =
  do
-  let i1 = start t
-      i2 = end t
-      startLocRef = (origVal cloc) !! i1
+  let l1 = start t
+      l2 = end t
+      startLocRef = (origVal cloc) `at` l1
   -- update locations
   -- input: lastval, hasUpdated, hasError, shouldUpdate, newVal
-  let lastVal = map ((latestVal cloc) !!) [i1, i2]
+  let lastVal = map ((latestVal cloc) `at`) [l1, l2]
       hasUd = hasUpdated cloc
       hasErr = hasError cloc
       newVal = [ff, tt]
   (lastVal', hasUpdated', hasError') <-
     updateRefs (lastVal, hasUd, hasErr, fired, newVal)
   
-  let newLoc' = replaceAtIndex i1 (lastVal'!!0) (latestVal cloc)
-      newLoc'' = replaceAtIndex i2 (lastVal'!!1) newLoc'
+  let newLoc' = replaceAt (l1, (lastVal' !! 0)) (latestVal cloc)
+      newLoc'' = replaceAt (l2, (lastVal' !! 1)) newLoc'
 
   return CS { origVal = origVal cloc
             , latestVal = newLoc'' 
@@ -261,7 +266,7 @@ checkPredicate :: PartialSynchCircuit -> Name -> (Predicate -> L Ref)
 checkPredicate psc nm (loc, gs) =
  do
     let locRefs = latestVal $ fromJust $ lookup nm (locMap psc)
-        rightLoc = locRefs!!loc
+        rightLoc = locRefs `at` loc
         bvs = boolVarMap psc
         bvrm = zip (map fst bvs) (map (latestVal . snd) bvs)
     gs <- sequence $ map (guardToLava bvrm) gs
@@ -296,6 +301,8 @@ updateToLava shouldUpdate bvs ud =
 
   return $ replaceAt (varName, newBoolVarState) bvs
   
+at :: Eq a => [(a,b)] -> a -> b
+m `at` i = fromJust $ lookup i m
 
 replaceAt :: (Eq a) => (a,b) -> [(a, b)] -> [(a, b)]
 replaceAt _ [] = []
@@ -327,8 +334,16 @@ updateRef (a, b, c, d, e) =
 
 
 
-locationOH :: Automaton -> L OneHotFlop
-locationOH a = oneHotFlops (0, nbrLocations a)
+locationOH :: Automaton -> L (IndexedOneHotFlop Location)
+locationOH a =
+ do
+   let locs = sort $ S.toList $ locations a
+       init = fromJust $ elemIndex (initialLocation a) locs
+   let (L m0) = oneHotFlops (init, length locs)
+   L (\n0 -> let ((ins, f), n1, gs1) = m0 n0
+                 sameOrder indexed   = map snd $ (sortWith fst indexed)
+                 f'                  = f . sameOrder
+              in ((zip locs ins, f'),n1, gs1))
 
 -- Input is (hot_value, #values)
 oneHotFlops :: (Int, Int) -> L OneHotFlop
@@ -343,6 +358,7 @@ oneHotFlops (val, max)
                      outApp          = (zipWith ($) outs)
                   in ((ins, sequence_ . outApp), n1, gs1))    
   | otherwise = error "oneHotFlops: index out of bounds"
+
 
 constantOneHot :: (Int, Int) -> OneHot
 constantOneHot (val, max)

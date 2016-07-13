@@ -6,8 +6,11 @@ import Lava
 import Data.Maybe
 import Circuit
 import Control.Monad
+import qualified Data.Set as S
 
 -- Dining philosophers
+
+
 
 
 
@@ -23,11 +26,16 @@ philSynch :: Int -> Synchronisation
 philSynch = (foldr synchronise emptySynch . philList)
 
 
+idle, eating :: Location
+idle = "idle"
+eating = "eating"
+
 philosopher :: (Int,Int) -> Automaton
 philosopher (p, max) = Aut { autName = "p"++this
-                           , nbrLocations = 2
+                           , locations = S.fromList [idle, eating]
                            , transitions = ts
                            , marked = []
+                           , initialLocation = idle
                            } 
  where
   this = show p
@@ -38,32 +46,32 @@ philosopher (p, max) = Aut { autName = "p"++this
        , eat
        , putDown
        ]
-  takeLeft = Trans { start = 0
+  takeLeft = Trans { start = idle
                    , event = "tl"++this
                    , guards = takeLeftGuards
                    , updates = [Update ("hl"++this) True]
-                   , end = 0
+                   , end = idle
                    , uncontrollable = False
                    }
-  takeRight = Trans { start = 0
+  takeRight = Trans { start = idle
                     , event = "tr"++this
                     , guards = takeRightGuards
                     , updates = [Update ("hr"++this) True]
-                    , end = 0
+                    , end = idle
                     , uncontrollable = False
                     }
-  eat = Trans { start = 0
+  eat = Trans { start = idle
               , event = "eat"++this
               , guards = eatGuards
               , updates = []
-              , end = 1
+              , end = eating
               , uncontrollable = True
               }
-  putDown = Trans { start = 1
+  putDown = Trans { start = eating
                   , event = "pd"++this
                   , guards = []
                   , updates = putDownUpdates
-                  , end = 0
+                  , end = idle
                   , uncontrollable = False
                   }
   takeLeftGuards = [ Guard ("hl"++this) False
@@ -74,7 +82,6 @@ philosopher (p, max) = Aut { autName = "p"++this
               , Guard ("hr"++this) True]
   putDownUpdates = [ Update ("hl"++this) False
                    , Update ("hr"++this) False]
-
 
 
 --------------------------------------------------------------------------------
