@@ -82,8 +82,8 @@ data SynchCircuit
 
 
 
-processSystem :: Synchronisation -> [Ref] -> L SynchCircuit
-processSystem s ins =
+processSystem :: Synchronisation -> L SynchCircuit
+processSystem s =
    do
      -- input processing
      evRefs <- sequence [ input | x <- allEvents s]
