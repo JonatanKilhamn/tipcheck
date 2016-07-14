@@ -79,6 +79,7 @@ data Synchronisation
   { automata :: [Automaton]
   , allEvents   :: [Event]
   , allBoolVars :: M.Map BoolVar Value
+  --, synchLog :: String
   }
  deriving ( Show )
 
@@ -94,10 +95,10 @@ boolVars a = M.fromList $ zip varNames (repeat False)
 
 synchronise :: Automaton -> Synchronisation -> Synchronisation
 synchronise a s =
-  Synch {automata = a:(automata s)
-        , allEvents = union (allEvents s) (events a)
-        , allBoolVars = M.unionWith takeFirst (allBoolVars s) (boolVars a)
-        }
+  s {automata = a:(automata s)
+    , allEvents = union (allEvents s) (events a)
+    , allBoolVars = M.unionWith takeFirst (allBoolVars s) (boolVars a)
+    }
  where takeFirst = flip seq
 
 setDefault :: (BoolVar, Value) -> Synchronisation -> Synchronisation
@@ -109,12 +110,19 @@ emptySynch :: Synchronisation
 emptySynch = Synch {automata = []
                    , allEvents = []
                    , allBoolVars = M.empty
+                   --, synchLog = ""
                    }
 
 
-
-
-
+setEventUncontrollable :: Event -> Synchronisation -> Synchronisation
+setEventUncontrollable e s =
+ s {automata = updatedAuts}
+  where
+     updatedAuts = map updateAut (automata s)
+     updateAut a = a {transitions = map updateTrans (transitions a)}
+     updateTrans t = if event t == e
+                     then t {uncontrollable = True}
+                     else t
 
 
 
