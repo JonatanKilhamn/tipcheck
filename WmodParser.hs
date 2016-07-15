@@ -18,15 +18,15 @@ readWmodFile fp =
        (Nothing) -> return emptySynch
 
 main :: IO Synchronisation
-main = readWmodFile "Examples/false_guard.wmod"
-       --"Examples/cat_mouse.wmod"
+main = readWmodFile --"Examples/false_guard.wmod"
+       "Examples/cat_mouse.wmod"
 
 debug :: IO String
 debug = readFile "Examples/cat_mouse.wmod"
 
 
 
-elemName :: String -> (Content -> Bool)
+elemName :: String -> Content -> Bool
 elemName s (Elem e) = (qName $ elName e) == s
 elemName _ _        = False
 
@@ -63,7 +63,6 @@ parseWmodXml cs =
    -- set initial values of variables
    -- TODO
    
-   
    return synch1
    
 
@@ -86,12 +85,12 @@ parseAutomaton e
    transitions <- parseTransitions edgeList
    
    -- Marked / forbidden states
-   -- TODO
+   acceptingPredicates <- parseAccepting nodeList
    
    return Aut { autName = aName
               , locations = locs
               , transitions = transitions -- :: [Transition]
-              , marked = [] -- :: [Predicate]
+              , marked = acceptingPredicates
               , initialLocation = initLoc -- :: Location
               }
 
@@ -104,6 +103,15 @@ parseLocations e
        locations = mapMaybe (getAttribute "Name") nodes
    initLoc <- findInXml isInitial (getAttribute "Name") nodes
    return (S.fromList locations, initLoc)
+
+parseAccepting :: Element -> Maybe [Predicate]
+parseAccepting e
+ | getElemName e /= "NodeList" = Nothing
+ | otherwise =
+  do
+   let nodes = mapMaybe getElem $ filter (elemName "SimpleNode") (elContent e)
+       acceptingNames = findAllInXml isAccepting (getAttribute "Name") nodes
+   return $ acceptingNames `zip` (repeat [])
 
 parseTransitions :: Element -> Maybe [Transition]
 parseTransitions e
@@ -128,7 +136,6 @@ parseTransition e
                                        (elContent labelBlock)
        names = mapMaybe (getAttribute "Name") ids
        
-   
    -- handle guards and updates
    -- TODO
    
@@ -159,10 +166,20 @@ getAttribute s e =
 
 
 isInitial :: Element -> Bool
-isInitial e = (getAttribute "Initial" e) == (Just "true")
+isInitial = hasAttrVal "Initial" "true"
+
+isAccepting :: Element -> Bool
+isAccepting e = isJust $ firstOccurrence isAccCont Just (elContent e)
+ where isAccCont c = (fmap (hasAttrVal "Name" ":accepting") (getElem c)) == (Just True)
+
+
+hasAttrVal :: String -> String -> Element -> Bool
+hasAttrVal attr val e = (getAttribute attr e) == (Just val)
+
+
 
 isUncontrollable :: Element -> Bool
-isUncontrollable e = (getAttribute "Kind" e) == (Just "UNCONTROLLABLE")
+isUncontrollable = hasAttrVal "Kind" "UNCONTROLLABLE"
 
 
 
@@ -175,6 +192,8 @@ findInXml :: (a -> Bool) -> (a -> Maybe b) -> [a] ->
   Maybe b
 findInXml pred fun cs = find pred cs >>= fun
 
+findAllInXml :: (a -> Bool) -> (a -> Maybe b) -> [a] -> [b]
+findAllInXml pred fun cs = mapMaybe fun (filter pred cs)
 
 firstOccurrence :: (Content -> Bool) -> (Content -> Maybe a) -> [Content] ->
   Maybe a
@@ -184,6 +203,6 @@ firstOccurrence a b cs = findInXml a b (flattenContent cs)
 flattenContent :: [Content] -> [Content]
 flattenContent = foldr expandAndAdd []
  where
-  expandAndAdd (Elem e) rest = (Elem e) : (elContent e) ++ rest
+  expandAndAdd (Elem e) rest = (Elem e) : (flattenContent (elContent e)) ++ rest
   expandAndAdd _        rest = rest
 
