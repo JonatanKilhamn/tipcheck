@@ -21,24 +21,84 @@ ordNub l = go S.empty l
 -- Only constants for the right-hand sides of guards and updates
 
 type Event = Name
-type BoolVar = Name
-type Value = Bool
+type VarName = Name
+--type Value = Int
 -- Location names only need to be unique within the automaton
 type Location = Name
 
-data Guard
-  = Guard
-  { gvar  :: BoolVar
-  , gval  :: Value
+data Expr
+  = IntExpr
+  | BoolExpr
+  | Update
+  deriving ( Show )
+
+data IntExpr
+ = IntConst Int
+ | Plus IntExpr IntExpr
+ | Minus IntExpr IntExpr
+ | IntVar VarName
+  deriving ( Show )
+ 
+data BoolExpr
+ = BoolConst Bool
+ | And BoolExpr BoolExpr
+ | Guard
+  deriving ( Show )
+
+data Guard = GInt BinaryPred IntExpr IntExpr
+  deriving ( Show )
+
+guardVarName :: Guard -> VarName
+guardVarName (GInt _ (IntVar x) _) = x
+guardVarName (GInt _ _ (IntVar x)) = x
+guardVarName _                     = undefined
+
+
+data BinaryPred
+ = Equals
+ | LessThan
+ | LessThanEq
+ | GreaterThan
+ | GreaterThanEq
+  deriving ( Show )
+ 
+data Update
+ = AssignInt VarName IntExpr
+  deriving ( Show )
+ 
+updateVarName :: Update -> VarName
+updateVarName (AssignInt x _) = x
+
+ 
+
+{-data UnaryOp
+ = Inv -- TODO: which unary operators are there?
+-}
+
+data Variable
+  = Variable
+  { lower :: Int
+  , upper :: Int
+  , initial :: Int
   }
   deriving ( Show, Eq )
 
-data Update
+isBooleanVariable :: Variable -> Bool
+isBooleanVariable v = (lower v == 0) && (upper v == 1)
+
+{-data Guard
+  = Guard
+  { gvar  :: Var
+  , gval  :: Value
+  }
+  deriving ( Show, Eq )-}
+
+{-data Update
   = Update
-  { uvar :: BoolVar
+  { uvar :: Var
   , uval :: Value
   }
-  deriving ( Show, Eq )
+  deriving ( Show, Eq )-}
 
 
 data Transition
@@ -51,6 +111,7 @@ data Transition
   , uncontrollable :: Bool
   }
   deriving ( Show )
+
 
 
 type Predicate = (Location, [Guard])
@@ -78,7 +139,8 @@ data Synchronisation
   = Synch
   { automata :: [Automaton]
   , allEvents   :: [Event]
-  , allBoolVars :: M.Map BoolVar Value
+  , allVars :: M.Map VarName Variable
+  --, allIntVars :: M.Map BoolVar (Value)
   --, synchLog :: String
   }
  deriving ( Show )
@@ -87,29 +149,34 @@ events :: Automaton -> [Event]
 events a = ordNub $ map event (transitions a)
 
 
-boolVars :: Automaton -> M.Map BoolVar Value
-boolVars a = M.fromList $ zip varNames (repeat False)
+getAllVars :: Automaton -> M.Map VarName Variable
+getAllVars a = M.fromList $ zip varNames (repeat unknownVar)
  where varNames = ordNub $ concat $ map varNames' (transitions a)
-       varNames' t = (map gvar (guards t)) ++ (map uvar (updates t))
+       varNames' t = (map guardVarName (guards t)) ++ (map updateVarName (updates t))
+       unknownVar = Variable {lower = 0, upper = 1, initial = 0}
 
 
 synchronise :: Automaton -> Synchronisation -> Synchronisation
 synchronise a s =
   s {automata = a:(automata s)
     , allEvents = union (allEvents s) (events a)
-    , allBoolVars = M.unionWith takeFirst (allBoolVars s) (boolVars a)
+    , allVars = M.unionWith takeFirst (allVars s) (getAllVars a)
     }
  where takeFirst = flip seq
 
-setDefault :: (BoolVar, Value) -> Synchronisation -> Synchronisation
-setDefault (bv, v) s = s {allBoolVars = M.update (\_ -> Just v) bv (allBoolVars s)
-                         }
--- TODO update the default value
+setDefault :: (VarName, Int) -> Synchronisation -> Synchronisation
+setDefault (bv, n) s =
+ let v = (allVars s) M.! bv in
+  s {allVars = M.update (\_ -> Just v {initial = n}) bv (allVars s)
+    }
+
+
+
 
 emptySynch :: Synchronisation
 emptySynch = Synch {automata = []
                    , allEvents = []
-                   , allBoolVars = M.empty
+                   , allVars = M.empty
                    --, synchLog = ""
                    }
 
