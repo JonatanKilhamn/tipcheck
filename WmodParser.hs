@@ -18,8 +18,8 @@ readWmodFile fp =
        (Nothing) -> return emptySynch
 
 main :: IO Synchronisation
-main = readWmodFile --"Examples/false_guard.wmod"
-       "Examples/cat_mouse.wmod"
+main = readWmodFile "Examples/false_guard.wmod"
+       --"Examples/cat_mouse.wmod"
 
 debug :: IO String
 debug = readFile "Examples/cat_mouse.wmod"
@@ -139,9 +139,13 @@ parseTransition e
    -- handle guards and updates
    -- TODO
    
+   guardBlock <- firstOccurrence (elemName "Guards") getElem (elContent e)
+   let exprElems = mapMaybe getElem (elContent guardBlock)
+       gs = mapMaybe (exprToGuard <=< parseExpr) exprElems
+   
    return [ Trans { start = from
                   , event = name
-                  , guards = []
+                  , guards = gs
                   , updates = []
                   , end = to
                   , uncontrollable = False
@@ -205,4 +209,88 @@ flattenContent = foldr expandAndAdd []
  where
   expandAndAdd (Elem e) rest = (Elem e) : (flattenContent (elContent e)) ++ rest
   expandAndAdd _        rest = rest
+
+
+exprToGuard :: Expr -> Maybe Guard
+exprToGuard (BO Equals e1 e2) = toGuard e1 e2
+ where toGuard (Var x) (IntConst n) = return $ Guard { gvar = x
+                                                     -- TODO: integer variables
+                                                     , gval = (n >= 0)
+                                                     }
+       toGuard a@(IntConst n) b@(Var x) = toGuard b a
+       toGuard _ _ = Nothing
+exprToGuard _ = Nothing
+
+
+
+------------------
+--- parsing expressions
+
+data Expr
+  = Var String
+  | IntConst Int
+  | BoolConst Bool
+  | BO BinaryOp Expr Expr
+  | UO UnaryOp Expr Expr
+
+data BinaryOp
+ = Equals
+ | Assign
+ | LessThan
+ | LessThanEq
+ | GreaterThan
+ | GreaterThanEq
+ | Plus
+ | Minus
+ | And
+ 
+data UnaryOp
+ = Inv -- TODO: which unary operators are there?
+
+
+
+parseExpr :: Element -> Maybe Expr
+parseExpr e
+ | getElemName e == "BinaryExpression" =
+  do
+   op <- parseBinaryOperator e
+   -- This section relies on all well-formed input having exactly
+   -- two sub-elements to every BinaryExpression element.
+   let args = mapMaybe getElem (elContent e)
+   arg1 <- parseExpr $ args!!0
+   arg2 <- parseExpr $ args!!1
+   return $ BO op arg1 arg2
+ | getElemName e == "UnaryExpression" =
+  do
+   return undefined
+ | getElemName e == "SimpleIdentifier" =
+  do
+   var <- getAttribute "Name" e
+   return $ Var var
+ | getElemName e == "IntConstant" =
+  do
+   val <- getAttribute "Value" e
+   return $ IntConst (read val)
+   
+
+
+
+parseBinaryOperator :: Element -> Maybe BinaryOp
+parseBinaryOperator e
+ = case (getAttribute "Operator" e) of
+        (Just "==")   -> return Equals
+        (Just "=")    -> return Assign
+        (Just "&lt;") -> return LessThan
+        (Just "&gt;") -> return GreaterThan
+        (Just "&le;") -> return LessThanEq
+        (Just "&lg;") -> return GreaterThanEq
+        (Just "+")    -> return Plus
+        (Just "-")    -> return Minus
+        (Nothing)     -> Nothing
+        
+
+
+
+
+
 
