@@ -90,7 +90,7 @@ philosopher (p, max) = Aut { autName = "p"++this
 
 
 phils :: Int -> L SynchCircuit
-phils n = processSystem (philSynch n) []
+phils n = processSystem (philSynch n)
 
 phils_prop :: Int -> L Props
 phils_prop n =
@@ -117,7 +117,7 @@ phils_prop n =
      -- props
      return $ props
        { always = [neg err]
-       , nevers  = [uc] --map snd $ boolVarRefs sc
+       , nevers  = [b1] --map snd $ boolVarRefs sc
        , finites = []
        }
  where
