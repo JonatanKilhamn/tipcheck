@@ -45,13 +45,11 @@ data BoolExpr
  | Guard
   deriving ( Show )
 
-data Guard = GInt BinaryPred IntExpr IntExpr
+data Guard = GInt BinaryPred VarName IntExpr
   deriving ( Show )
 
 guardVarName :: Guard -> VarName
-guardVarName (GInt _ (IntVar x) _) = x
-guardVarName (GInt _ _ (IntVar x)) = x
-guardVarName _                     = undefined
+guardVarName (GInt _ x _) = x
 
 
 data BinaryPred
@@ -192,5 +190,5 @@ setEventUncontrollable e s =
                      else t
 
 
-
+-- TODO: checkSynchronisation, which checks that all initial values lie between the bounds
 

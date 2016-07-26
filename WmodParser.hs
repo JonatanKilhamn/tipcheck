@@ -226,28 +226,6 @@ exprToGuard _ = Nothing
 ------------------
 --- parsing expressions
 
-data Expr
-  = Var String
-  | IntConst Int
-  | BoolConst Bool
-  | BO BinaryOp Expr Expr
-  | UO UnaryOp Expr Expr
-
-data BinaryOp
- = Equals
- | Assign
- | LessThan
- | LessThanEq
- | GreaterThan
- | GreaterThanEq
- | Plus
- | Minus
- | And
- 
-data UnaryOp
- = Inv -- TODO: which unary operators are there?
-
-
 
 parseExpr :: Element -> Maybe Expr
 parseExpr e
