@@ -168,7 +168,11 @@ setDefault (bv, n) s =
   s {allVars = M.update (\_ -> Just v {initial = n}) bv (allVars s)
     }
 
-
+setRangeMax :: (VarName, Int) -> Synchronisation -> Synchronisation
+setRangeMax (bv, n) s =
+ let v = (allVars s) M.! bv in
+  s {allVars = M.update (\_ -> Just v {upper = n}) bv (allVars s)
+    }
 
 
 emptySynch :: Synchronisation

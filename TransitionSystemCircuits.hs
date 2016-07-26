@@ -258,7 +258,6 @@ isBlocked evm a enabled =
   orl blockedEvents
 
 
-
 checkMarked :: PartialSynchCircuit -> (Automaton -> L Ref)
 checkMarked psc a =
  do    
@@ -297,20 +296,24 @@ unaryMinus = undefined
 compareUnaryConstant :: BinaryPred -> Un -> Int -> L Ref
 compareUnaryConstant pred un n
  = let above = (n > length un)
-       belowEq = (n <= 0)
-       exact = (n == length un)
+       below = (n <= 0)
+       exactMax = (n == length un)
+       exactZero = (n == 0)
    in
  case (pred) of
-      (Equals) -> and2
-                  (un !! (n-1)) -- TODO handle case n==0
-                  (neg $ if exact then ff else (un !! n))
+      (Equals) ->
+       case (above || below, exactMax, exactZero) of
+            (True, _, _) -> return ff
+            (_, True, _) -> return $ un !! (n-1)
+            (_, _, True) -> return $ neg $ (un !! n)
+            (_,_,_) -> and2 (un !! (n-1)) (neg (un !! n))
       (LessThan) -> return $
-       case (above, belowEq) of
+       case (above, below || exactZero) of
             (True, _) -> tt
             (_, True) -> ff
             (_)       -> neg $ un !! (n-1)
       (GreaterThanEq) -> return $
-       case (above, belowEq) of
+       case (above, below || exactZero) of
             (True, _) -> ff
             (_, True) -> tt
             (_)       -> un !! (n-1)
@@ -357,13 +360,13 @@ updateToLava shouldUpdate vm (AssignInt varName expr) =
   (lastVal', hasUpdated', hasError') <-
     updateRefs (lastVal, hasUd, hasErr, shouldUpdate, newVal)
 
-  let newBoolVarState = CS { origVal = origVal var
-                           , latestVal = lastVal' 
-                           , hasUpdated = hasUpdated'
-                           , hasError = hasError'
-                           }
+  let newVarState = CS { origVal = origVal var
+                       , latestVal = lastVal'
+                       , hasUpdated = hasUpdated'
+                       , hasError = hasError'
+                       }
 
-  return $ replaceAt (varName, newBoolVarState) vm
+  return $ replaceAt (varName, newVarState) vm
 
 
 constUn :: Int -> Int -> Un
