@@ -285,6 +285,7 @@ guardToLava vrm (GInt pred x exp) =
        (IntVar y) -> compareUnaries pred un (fromJust $ lookup y vrm)
        --TODO: recursion to handle plus and minus
 
+
 -- TODO
 unaryPlus :: Un -> Un -> L Un
 unaryPlus = undefined
@@ -294,9 +295,9 @@ unaryMinus = undefined
 
 
 compareUnaryConstant :: BinaryPred -> Un -> Int -> L Ref
-compareUnaryConstant pred un n
- = let above = (n > length un)
-       below = (n <= 0)
+compareUnaryConstant pred un n =
+   let above = (n > length un)
+       below = (n < 0)
        exactMax = (n == length un)
        exactZero = (n == 0)
    in
@@ -320,7 +321,7 @@ compareUnaryConstant pred un n
       (LessThanEq) -> compareUnaryConstant LessThan un (n+1)
       (GreaterThan) -> compareUnaryConstant GreaterThanEq un (n+1)
       
-  
+
 
 compareUnaries :: BinaryPred -> Un -> Un -> L Ref
 compareUnaries pred un1 un2 =
@@ -415,8 +416,6 @@ varFlop v =
  in L (\n0 -> let (tups, n1, gs1) = m0 n0
                   (ins, outs)     = unzip tups
                   outApp          = (zipWith ($) outs)
-                  outsUn          = outApp . fst
-                  insUn           = (ins, v)
               in ((ins, sequence_ . outApp), n1, gs1))    
 
 
