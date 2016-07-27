@@ -26,23 +26,11 @@ type VarName = Name
 -- Location names only need to be unique within the automaton
 type Location = Name
 
-data Expr
-  = IntExpr
-  | BoolExpr
-  | Update
-  deriving ( Show )
-
 data IntExpr
  = IntConst Int
  | Plus IntExpr IntExpr
  | Minus IntExpr IntExpr
  | IntVar VarName
-  deriving ( Show )
- 
-data BoolExpr
- = BoolConst Bool
- | And BoolExpr BoolExpr
- | Guard
   deriving ( Show )
 
 data Guard = GInt BinaryPred VarName IntExpr
@@ -172,6 +160,12 @@ setRangeMax :: (VarName, Int) -> Synchronisation -> Synchronisation
 setRangeMax (bv, n) s =
  let v = (allVars s) M.! bv in
   s {allVars = M.update (\_ -> Just v {upper = n}) bv (allVars s)
+    }
+
+setRangeMin :: (VarName, Int) -> Synchronisation -> Synchronisation
+setRangeMin (bv, n) s =
+ let v = (allVars s) M.! bv in
+  s {allVars = M.update (\_ -> Just v {lower = n}) bv (allVars s)
     }
 
 

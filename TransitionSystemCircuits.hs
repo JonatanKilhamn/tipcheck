@@ -313,11 +313,7 @@ compareUnaryConstant pred un n =
             (True, _) -> tt
             (_, True) -> ff
             (_)       -> neg $ un !! (n-1)
-      (GreaterThanEq) -> return $
-       case (above, below || exactZero) of
-            (True, _) -> ff
-            (_, True) -> tt
-            (_)       -> un !! (n-1)
+      (GreaterThanEq) -> fmap neg (compareUnaryConstant LessThan un n)
       (LessThanEq) -> compareUnaryConstant LessThan un (n+1)
       (GreaterThan) -> compareUnaryConstant GreaterThanEq un (n+1)
       
