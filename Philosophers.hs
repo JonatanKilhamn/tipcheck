@@ -124,8 +124,8 @@ phils_prop n =
    this p = show $ p `mod` n
    left p = show $ (p-1) `mod` n
    right p = show $ (p+1) `mod` n
-   holdingLeft sc p = fromJust $ lookup ("hl"++this p) (varRefs sc)
-   heldByLeft sc p = fromJust $ lookup ("hr"++left p) (varRefs sc)
+   holdingLeft sc p = fst . fromJust $ lookup ("hl"++this p) (varRefs sc)
+   heldByLeft sc p = fst . fromJust $ lookup ("hr"++left p) (varRefs sc)
    
 
 phils_c :: Int -> Circuit

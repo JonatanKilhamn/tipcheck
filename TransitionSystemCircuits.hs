@@ -23,7 +23,28 @@ type OneHot = [Ref]
 type IndexedOneHot k = [(k, Ref)]
 type Bin = [Ref]
 
-type Un = [Ref]
+type Un = ([Ref], Int)
+
+refAt :: Un -> Int -> Ref
+(refs,offset) `refAt` i =
+ let below = i <= offset
+     above = i > offset + length refs
+ in case (below,above) of
+         (True,_) -> tt
+         (_, True) -> ff
+         (_,_) -> refs !! (i - offset - 1)
+
+isValidUn :: Un -> Bool
+isValidUn un@(refs,offset) =
+ and [ okay (refAt un i) (refAt un (i+1))
+     | i <- range un ]
+  where okay a b = case (a,b) of
+                        (Bool False, Bool False) -> True
+                        (Bool False, _) -> False
+                        (_, _) -> True
+
+range :: Un -> [Int]
+range (rs, o) = [o..(o + length rs)]
 
 --type UnaryVariable = (Un, Variable)
 
@@ -283,6 +304,7 @@ guardToLava vrm (GInt pred x exp) =
   case (exp) of
        (IntConst i) -> compareUnaryConstant pred un i
        (IntVar y) -> compareUnaries pred un (fromJust $ lookup y vrm)
+       (Plus e1 e2) -> undefined --case (intExprToUn
        --TODO: recursion to handle plus and minus
 
 
@@ -294,25 +316,12 @@ unaryMinus :: Un -> Un -> L Un
 unaryMinus = undefined
 
 
+
 compareUnaryConstant :: BinaryPred -> Un -> Int -> L Ref
 compareUnaryConstant pred un n =
-   let above = (n > length un)
-       below = (n < 0)
-       exactMax = (n == length un)
-       exactZero = (n == 0)
-   in
  case (pred) of
-      (Equals) ->
-       case (above || below, exactMax, exactZero) of
-            (True, _, _) -> return ff
-            (_, True, _) -> return $ un !! (n-1)
-            (_, _, True) -> return $ neg $ (un !! n)
-            (_,_,_) -> and2 (un !! (n-1)) (neg (un !! n))
-      (LessThan) -> return $
-       case (above, below || exactZero) of
-            (True, _) -> tt
-            (_, True) -> ff
-            (_)       -> neg $ un !! (n-1)
+      (Equals) -> and2 (un `refAt` n) (neg (un `refAt` (n+1)))
+      (LessThan) -> return $ neg $ un `refAt` n
       (GreaterThanEq) -> fmap neg (compareUnaryConstant LessThan un n)
       (LessThanEq) -> compareUnaryConstant LessThan un (n+1)
       (GreaterThan) -> compareUnaryConstant GreaterThanEq un (n+1)
@@ -320,37 +329,30 @@ compareUnaryConstant pred un n =
 
 
 compareUnaries :: BinaryPred -> Un -> Un -> L Ref
-compareUnaries pred un1 un2 =
+compareUnaries pred unv1 unv2@([],o) = compareUnaryConstant pred unv1 o
+compareUnaries pred unv1@(un1,offs1) unv2@(un2,offs2) =
  do
-  let (xs, ys) = pad un1 un2 ff
-      (pairFun, argFun) = funs pred
-  parts <- sequence $ map (uncurry pairFun) (argFun xs ys)
-  andl parts
- where funs Equals = (eq2, zip)
-       funs LessThanEq = (impl2, zip)
-       funs LessThan = (impl2, oneDiffZip ff)
-       funs GreaterThanEq = (flip impl2, zip)
-       funs GreaterThan = (flip impl2, flip (oneDiffZip ff))
-       oneDiffZip e as bs = zip as ((tail bs) ++ [e])
-
-
-
-pad :: [a] -> [a] -> a -> ([a],[a])
-pad xs ys e = ( xs ++ (replicate (-n) e)
-              , ys ++ (replicate (n) e))
- where n = (length xs) - (length ys)
-
+  let (pairFun, diff) = funs pred
+      unv2' = (un2, offs2+diff)
+  parts <- sequence $ [ pairFun (unv1 `refAt` i) (unv2' `refAt` i)
+                      | i <- union (range unv1) (range unv2') ]
+  andl (tt:parts)
+ where funs Equals = (eq2, 0)
+       funs LessThanEq = (impl2, 0)
+       funs LessThan = (impl2, -1)
+       funs GreaterThanEq = (flip impl2, 0)
+       funs GreaterThan = (flip impl2, 1)
 
 updateToLava :: Ref -> VarMap -> Update -> L VarMap
 updateToLava shouldUpdate vm (AssignInt varName expr) = 
  do
   let var = fromJust $ lookup varName vm
-      lastVal = latestVal var
+      (lastVal, offs) = latestVal var
       hasUd = hasUpdated var
       hasErr = hasError var      
       
-      newVal =
-       case (expr) of
+      (newVal, _) =
+       case (expr) of --TODO: offset!
             (IntConst n) -> constUn n (length lastVal)
             (IntVar x) -> latestVal $ fromJust $ lookup x vm
     
@@ -358,7 +360,7 @@ updateToLava shouldUpdate vm (AssignInt varName expr) =
     updateRefs (lastVal, hasUd, hasErr, shouldUpdate, newVal)
 
   let newVarState = CS { origVal = origVal var
-                       , latestVal = lastVal'
+                       , latestVal = (lastVal', offs)
                        , hasUpdated = hasUpdated'
                        , hasError = hasError'
                        }
@@ -367,7 +369,8 @@ updateToLava shouldUpdate vm (AssignInt varName expr) =
 
 
 constUn :: Int -> Int -> Un
-constUn n max = [ if (i<n) then tt else ff | i <- [0 .. (max-1)] ]
+constUn n max = ( [ if (i<n) then tt else ff | i <- [0 .. (max-1)] ]
+                , 0)
   
 at :: Eq a => [(a,b)] -> a -> b
 m `at` i = fromJust $ lookup i m
@@ -412,7 +415,10 @@ varFlop v =
  in L (\n0 -> let (tups, n1, gs1) = m0 n0
                   (ins, outs)     = unzip tups
                   outApp          = (zipWith ($) outs)
-              in ((ins, sequence_ . outApp), n1, gs1))    
+              in ( ( ( ins ,lower v)
+                   , sequence_ . outApp . fst )
+                 , n1, gs1 )
+      )    
 
 
 locationOH :: Automaton -> L (IndexedOneHotFlop Location)

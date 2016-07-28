@@ -7,6 +7,7 @@ import Data.List
 import qualified Control.Monad as C
 import Circuit
 import qualified Data.Set as S
+import Test.QuickCheck
 
 --------------------
 
@@ -48,6 +49,8 @@ data BinaryPred
  | GreaterThanEq
   deriving ( Show )
  
+
+
 data Update
  = AssignInt VarName IntExpr
   deriving ( Show )
