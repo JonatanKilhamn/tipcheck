@@ -49,14 +49,14 @@ philosopher (p, max) = Aut { autName = "p"++this
   takeLeft = Trans { start = idle
                    , event = "tl"++this
                    , guards = takeLeftGuards
-                   , updates = [Update ("hl"++this) True]
+                   , updates = [AssignInt ("hl"++this) (IntConst 1)]
                    , end = idle
                    , uncontrollable = False
                    }
   takeRight = Trans { start = idle
                     , event = "tr"++this
                     , guards = takeRightGuards
-                    , updates = [Update ("hr"++this) True]
+                    , updates = [AssignInt ("hr"++this) (IntConst 1)]
                     , end = idle
                     , uncontrollable = False
                     }
@@ -74,14 +74,14 @@ philosopher (p, max) = Aut { autName = "p"++this
                   , end = idle
                   , uncontrollable = False
                   }
-  takeLeftGuards = [ Guard ("hl"++this) False
-                   , Guard ("hr"++left) False]
-  takeRightGuards = [ Guard ("hr"++this) False
-                    , Guard ("hl"++right) False]
-  eatGuards = [ Guard ("hl"++this) True
-              , Guard ("hr"++this) True]
-  putDownUpdates = [ Update ("hl"++this) False
-                   , Update ("hr"++this) False]
+  takeLeftGuards = [ GInt Equals ("hl"++this) (IntConst 0)
+                   , GInt Equals ("hr"++left) (IntConst 0)]
+  takeRightGuards = [ GInt Equals ("hr"++this) (IntConst 0)
+                    , GInt Equals ("hl"++right) (IntConst 0)]
+  eatGuards = [ GInt Equals ("hl"++this) (IntConst 1)
+              , GInt Equals ("hr"++this) (IntConst 1)]
+  putDownUpdates = [ AssignInt ("hl"++this) (IntConst 0)
+                   , AssignInt ("hr"++this) (IntConst 0)]
 
 
 --------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ phils_prop n =
      
      -- never two phils holding the same fork
      held_twice <- sequence
-                   [ and2 (holdingLeft sc p) (heldByLeft sc p)
+                   [ and2 ((holdingLeft sc p)!!0) ((heldByLeft sc p)!!0)
                    | p <- [0..n-1]
                    ]
      b1 <- orl held_twice
@@ -124,12 +124,15 @@ phils_prop n =
    this p = show $ p `mod` n
    left p = show $ (p-1) `mod` n
    right p = show $ (p+1) `mod` n
-   holdingLeft sc p = fromJust $ lookup ("hl"++this p) (boolVarRefs sc)
-   heldByLeft sc p = fromJust $ lookup ("hr"++left p) (boolVarRefs sc)
+   holdingLeft sc p = fst . fromJust $ lookup ("hl"++this p) (varRefs sc)
+   heldByLeft sc p = fst . fromJust $ lookup ("hr"++left p) (varRefs sc)
    
 
 phils_c :: Int -> Circuit
 phils_c = circuit . phils_prop   
+   
+main :: IO ()
+main = writeCircuit "Examples/phils2" (phils_c 2)
    
 --------------------------------------------------------------------------------
 -- Step example

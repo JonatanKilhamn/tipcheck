@@ -58,12 +58,11 @@ parseWmodXml cs =
    -- handle variables
    let vcConts = filter (elemName "VariableComponent") (elContent cl)
        vcElems = mapMaybe getElem vcConts
-   -- TODO: what do we actually do with them? Set defaults, yes. Set ranges?
-
    -- set initial values of variables
+   synch2 <- foldM setVarInitAndRange synch1 vcElems
    -- TODO
    
-   return synch1
+   return synch2
    
 
 parseAutomaton :: Element -> Maybe Automaton
@@ -136,12 +135,13 @@ parseTransition e
                                        (elContent labelBlock)
        names = mapMaybe (getAttribute "Name") ids
        
-   -- handle guards and updates
-   -- TODO
+   -- handle guards:
    
    guardBlock <- firstOccurrence (elemName "Guards") getElem (elContent e)
    let exprElems = mapMaybe getElem (elContent guardBlock)
        gs = mapMaybe (exprToGuard <=< parseExpr) exprElems
+   
+   -- TODO handle updates
    
    return [ Trans { start = from
                   , event = name
@@ -212,41 +212,46 @@ flattenContent = foldr expandAndAdd []
 
 
 exprToGuard :: Expr -> Maybe Guard
-exprToGuard (BO Equals e1 e2) = toGuard e1 e2
- where toGuard (Var x) (IntConst n) = return $ Guard { gvar = x
-                                                     -- TODO: integer variables
-                                                     , gval = (n >= 0)
-                                                     }
-       toGuard a@(IntConst n) b@(Var x) = toGuard b a
+exprToGuard (BO OpEquals e1 e2) = toGuard e1 e2
+ where toGuard (Var x) (Const n) = return $ GInt Equals x (IntConst n)
+       toGuard a@(Const n) b@(Var x) = toGuard b a
        toGuard _ _ = Nothing
 exprToGuard _ = Nothing
+-- TODO: comparison operators other than equals
+
+setVarInitAndRange :: Synchronisation -> Element -> Maybe Synchronisation
+setVarInitAndRange s e
+ | getElemName e /= "VariableComponent" = Nothing
+ | otherwise =
+  do
+   name <- getAttribute "Name" e 
+   rangeElem <- firstOccurrence (elemName "VariableRange") getElem (elContent e)
+   rangeExpr <- firstOccurrence (elemName "BinaryExpression")
+                                (getElem >=> parseExpr)
+                                (elContent  rangeElem)
+   (min, max) <-
+    case (rangeExpr) of
+         (BO OpRange (Const i) (Const j)) -> Just (i,j)
+         (_) -> Nothing
+         
+   initElem <- firstOccurrence (elemName "VariableInitial")
+                               (getElem) (elContent e)
+   initExpr <- firstOccurrence (elemName "IntConstant")
+                               (getElem >=> parseExpr)
+                               (elContent initElem)   
+   init <- case (initExpr) of
+                (Const i) -> Just i
+                (_) -> Nothing
+   return $ setDefault (name,init) $
+             setRangeMin (name,min) $
+              setRangeMax (name,max) s
+
+
 
 
 
 ------------------
 --- parsing expressions
-
-data Expr
-  = Var String
-  | IntConst Int
-  | BoolConst Bool
-  | BO BinaryOp Expr Expr
-  | UO UnaryOp Expr Expr
-
-data BinaryOp
- = Equals
- | Assign
- | LessThan
- | LessThanEq
- | GreaterThan
- | GreaterThanEq
- | Plus
- | Minus
- | And
- 
-data UnaryOp
- = Inv -- TODO: which unary operators are there?
-
 
 
 parseExpr :: Element -> Maybe Expr
@@ -270,22 +275,44 @@ parseExpr e
  | getElemName e == "IntConstant" =
   do
    val <- getAttribute "Value" e
-   return $ IntConst (read val)
-   
+   return $ Const (read val)
+ | otherwise = Nothing
 
 
+data Expr
+  = Const Int
+  | Var VarName
+  | BO BinaryOp Expr Expr
+  deriving ( Show )
 
+
+data BinaryOp
+ = OpEquals
+ | OpLessThan
+ | OpLessThanEq
+ | OpGreaterThan
+ | OpGreaterThanEq
+ | OpAssign
+ | OpPlus
+ | OpMinus
+ | OpAnd
+ | OpRange
+  deriving ( Show )
+
+
+-- TODO: does the format ever use AND?
 parseBinaryOperator :: Element -> Maybe BinaryOp
 parseBinaryOperator e
  = case (getAttribute "Operator" e) of
-        (Just "==")   -> return Equals
-        (Just "=")    -> return Assign
-        (Just "&lt;") -> return LessThan
-        (Just "&gt;") -> return GreaterThan
-        (Just "&le;") -> return LessThanEq
-        (Just "&lg;") -> return GreaterThanEq
-        (Just "+")    -> return Plus
-        (Just "-")    -> return Minus
+        (Just "==")   -> return OpEquals
+        (Just "=")    -> return OpAssign
+        (Just "&lt;") -> return OpLessThan
+        (Just "&gt;") -> return OpGreaterThan
+        (Just "&le;") -> return OpLessThanEq
+        (Just "&lg;") -> return OpGreaterThanEq
+        (Just "+")    -> return OpPlus
+        (Just "-")    -> return OpMinus
+        (Just "..")   -> return OpRange
         (Nothing)     -> Nothing
         
 

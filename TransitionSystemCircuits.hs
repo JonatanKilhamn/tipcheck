@@ -22,10 +22,38 @@ import GHC.Exts
 type OneHot = [Ref]
 type IndexedOneHot k = [(k, Ref)]
 type Bin = [Ref]
-type Un = [Ref]
 
-type OneHotFlop = (OneHot, OneHot -> L ())
-type IndexedOneHotFlop k = (IndexedOneHot k, (IndexedOneHot k) -> L ())
+type Un = ([Ref], Int)
+
+refAt :: Un -> Int -> Ref
+(refs,offset) `refAt` i =
+ let below = i <= offset
+     above = i > offset + length refs
+ in case (below,above) of
+         (True,_) -> tt
+         (_, True) -> ff
+         (_,_) -> refs !! (i - offset - 1)
+
+isValidUn :: Un -> Bool
+isValidUn un@(refs,offset) =
+ and [ okay (refAt un i) (refAt un (i+1))
+     | i <- range un ]
+  where okay a b = case (a,b) of
+                        (Bool False, Bool False) -> True
+                        (Bool False, _) -> False
+                        (_, _) -> True
+
+range :: Un -> [Int]
+range (rs, o) = [o..(o + length rs)]
+
+--type UnaryVariable = (Un, Variable)
+
+type Flop a = (a, a -> L ())
+
+type UnaryFlop = Flop Un
+
+type OneHotFlop = Flop OneHot --(OneHot, OneHot -> L ())
+type IndexedOneHotFlop k = Flop (IndexedOneHot k)--(IndexedOneHot k, (IndexedOneHot k) -> L ())
 
 data CState k = CS { origVal   :: k
                    , latestVal :: k
@@ -42,20 +70,20 @@ newState a = CS { origVal = a
                 }
 
 type CLocation = CState (IndexedOneHot Location)
-type CBoolVar = CState Ref
+type CVariable = CState Un
 type CEvent = Ref
 
 
 type LocationsMap = [(Name, CLocation)]
 
-type BoolVarMap = [(BoolVar, CBoolVar)]
+type VarMap = [(VarName, CVariable)]
 
 type EventMap = [(Event, CEvent)]
 
 data PartialSynchCircuit
   = PSC
   { locMap :: LocationsMap
-  , boolVarMap :: BoolVarMap
+  , varMap :: VarMap
   , eventMap   :: EventMap
   , globalError :: Ref
   , uncontr :: Ref
@@ -63,7 +91,7 @@ data PartialSynchCircuit
 
 type LocationRefMap = [(Name, IndexedOneHot Location)]
 
-type BoolVarRefMap = [(BoolVar, Ref)]
+type VarRefMap = [(VarName, Un)]
 
 type EventRefMap = [(Event, Ref)]
 
@@ -72,14 +100,13 @@ type MarkedRefMap = [(Name, Ref)]
 data SynchCircuit
   = SynchC
   { locRefs :: LocationRefMap
-  , boolVarRefs :: BoolVarRefMap
+  , varRefs :: VarRefMap
   , eventRefs   :: EventRefMap
   , markedRefs :: MarkedRefMap
   , anyError :: Ref
   , anyUncontr :: Ref
   }
  deriving ( Show )
-
 
 
 processSystem :: Synchronisation -> L SynchCircuit
@@ -89,7 +116,7 @@ processSystem s =
      evRefs <- sequence [ input | x <- allEvents s]
 
      let autNames = map autName (automata s)
-         boolVarNames = M.keys (allBoolVars s)
+         allVarNames = M.keys (allVars s)
          evm = zip (allEvents s) evRefs
 
      -- create location state variables
@@ -97,16 +124,16 @@ processSystem s =
      let locRefs = map fst locFlops
 
       -- create state variables
-     varFlops <- sequence [ flop $ Just $ (allBoolVars s) M.! var
-                          | var <- boolVarNames
+     varFlops <- sequence [ varFlop $ (allVars s) M.! var
+                          | var <- allVarNames
                           ]
      
      -- create big clumsy object to pass around
      let auts = [ (name, (newState loc))
                 | ((loc, _), name) <- zip locFlops autNames ]
-         bvs = zip boolVarNames (map (newState . fst) varFlops)
+         vs = zip allVarNames (map (newState . fst) varFlops)
          state = PSC { locMap = auts
-                     , boolVarMap = bvs
+                     , varMap = vs
                      , eventMap   = evm
                      , globalError = ff
                      , uncontr = ff
@@ -121,9 +148,9 @@ processSystem s =
        (map snd locFlops) newLocs
 
      -- set the updated variable values
-     let newBoolVars = map (latestVal . snd) (boolVarMap state1)
+     let newVars = map (latestVal . snd) (varMap state1)
      sequence_ $ zipWith ($)
-       (map snd varFlops) newBoolVars
+       (map snd varFlops) newVars
      
      -- compute which automata are in marked states
      markedRefs <- sequence $ map (checkMarked state1)
@@ -132,7 +159,7 @@ processSystem s =
      
      -- compute errors
      locErr <- orl (map (hasError . snd) (locMap state1))
-     varErr <- orl (map (hasError . snd) (boolVarMap state1))
+     varErr <- orl (map (hasError . snd) (varMap state1))
      localError <- or2 locErr varErr
      
      validInput <- isOH evRefs
@@ -141,7 +168,7 @@ processSystem s =
      
      -- output
      let circuit = SynchC { locRefs = zip autNames newLocs
-                          , boolVarRefs = zip boolVarNames newBoolVars
+                          , varRefs = zip allVarNames newVars
                           , eventRefs = evm
                           , markedRefs = marked
                           , anyError = finalError
@@ -156,7 +183,7 @@ processAutomaton :: PartialSynchCircuit -> Automaton ->
 processAutomaton state a =
  do
   let trans = transitions a
-      bvm = boolVarMap state
+      vm = varMap state
       evm = eventMap state
       auts = locMap state
       an = autName a
@@ -164,7 +191,7 @@ processAutomaton state a =
       getEventRef t = fromJust $ lookup (event t) evm
 
   -- create refs signifying which transitions are enabled
-  enableds <- sequence $ map (isEnabledTransition cloc bvm) trans
+  enableds <- sequence $ map (isEnabledTransition cloc vm) trans
   -- refs signifying which transitions are fired
   fireds <- sequence $ zipWith and2 (map getEventRef trans) enableds
   
@@ -175,7 +202,7 @@ processAutomaton state a =
   let auts' = replaceAt (an, cloc') auts
   
   -- update state variables
-  bvm' <- foldM varUpdates bvm transAndFireds
+  vm' <- foldM varUpdates vm transAndFireds
   
   -- update controllability
   uncontrFound <- orl [ f | (t, f) <- transAndFireds, uncontrollable t ]
@@ -186,20 +213,20 @@ processAutomaton state a =
   globalError' <- or2 autError (globalError state)
   
   return state { locMap = auts'
-               , boolVarMap = bvm'
+               , varMap = vm'
                , globalError = globalError'
                , uncontr = uncontr'
                }
 
-isEnabledTransition :: CLocation -> BoolVarMap -> Transition ->
+isEnabledTransition :: CLocation -> VarMap -> Transition ->
   L Ref
-isEnabledTransition cloc bvm t =
+isEnabledTransition cloc vm t =
  do
   let startLocRef = fromJust $ lookup (start t) (origVal cloc)
   
   -- check all the guards
-  let bvrm = zip (map fst bvm) (map (origVal . snd) bvm)
-  gs <- sequence $ map (guardToLava bvrm) (guards t)
+  let vrm = zip (map fst vm) (map (origVal . snd) vm)
+  gs <- sequence $ map (guardToLava vrm) (guards t)
   clearedGuards <- andl gs
   and2 startLocRef clearedGuards
 
@@ -228,10 +255,10 @@ locationUpdate cloc (t, fired) =
             }
 
 
-varUpdates :: BoolVarMap -> (Transition, Ref) ->
-  L BoolVarMap
-varUpdates bvm (t, fired) =
- foldM (updateToLava fired) bvm (updates t)
+varUpdates :: VarMap -> (Transition, Ref) ->
+  L VarMap
+varUpdates vm (t, fired) =
+ foldM (updateToLava fired) vm (updates t)
 
 isBlocked :: EventMap -> Automaton -> [Ref] -> L Ref
 isBlocked evm a enabled =
@@ -239,11 +266,10 @@ isBlocked evm a enabled =
   let trans = transitions a
       
   enabledEvents <- sequence $
-                    [ orl
-                     [ enabledRef
-                     | (t, enabledRef) <- zip trans enabled,
-                       e == event t
-                     ]
+                    [ orl [ enabledRef
+                          | (t, enabledRef) <- zip trans enabled,
+                            e == event t
+                          ]
                     | e <- events a
                     ]
 
@@ -251,7 +277,6 @@ isBlocked evm a enabled =
   blockedEvents <- sequence $ zipWith and2 eventRefs (map neg enabledEvents)
   
   orl blockedEvents
-
 
 
 checkMarked :: PartialSynchCircuit -> (Automaton -> L Ref)
@@ -267,39 +292,85 @@ checkPredicate psc nm (loc, gs) =
  do
     let locRefs = latestVal $ fromJust $ lookup nm (locMap psc)
         rightLoc = locRefs `at` loc
-        bvs = boolVarMap psc
-        bvrm = zip (map fst bvs) (map (latestVal . snd) bvs)
-    gs <- sequence $ map (guardToLava bvrm) gs
+        vm = varMap psc
+        vrm = zip (map fst vm) (map (latestVal . snd) vm)
+    gs <- sequence $ map (guardToLava vrm) gs
     andl gs
-    
-guardToLava :: (BoolVarRefMap) -> Guard -> L Ref
-guardToLava bvrm g = case (gval g) of
-                          (True) -> return $ ref
-                          (False) -> return $ neg $ ref
- where
-  ref = fromJust $ lookup (gvar g) (bvrm)
+
+guardToLava :: VarRefMap -> Guard -> L Ref
+guardToLava vrm (GInt pred x exp) =
+ do 
+  let un = fromJust $ lookup x vrm
+  case (exp) of
+       (IntConst i) -> compareUnaryConstant pred un i
+       (IntVar y) -> compareUnaries pred un (fromJust $ lookup y vrm)
+       (Plus e1 e2) -> undefined --case (intExprToUn
+       --TODO: recursion to handle plus and minus
 
 
-updateToLava :: Ref -> BoolVarMap -> Update -> L BoolVarMap
-updateToLava shouldUpdate bvs ud =
+-- TODO
+unaryPlus :: Un -> Un -> L Un
+unaryPlus = undefined
+
+unaryMinus :: Un -> Un -> L Un
+unaryMinus = undefined
+
+
+
+compareUnaryConstant :: BinaryPred -> Un -> Int -> L Ref
+compareUnaryConstant pred un n =
+ case (pred) of
+      (Equals) -> and2 (un `refAt` n) (neg (un `refAt` (n+1)))
+      (LessThan) -> return $ neg $ un `refAt` n
+      (GreaterThanEq) -> fmap neg (compareUnaryConstant LessThan un n)
+      (LessThanEq) -> compareUnaryConstant LessThan un (n+1)
+      (GreaterThan) -> compareUnaryConstant GreaterThanEq un (n+1)
+      
+
+
+compareUnaries :: BinaryPred -> Un -> Un -> L Ref
+compareUnaries pred unv1 unv2@([],o) = compareUnaryConstant pred unv1 o
+compareUnaries pred unv1@(un1,offs1) unv2@(un2,offs2) =
  do
-  let varName = uvar ud
-      newVal = if (uval ud) then tt else ff
-      boolVar = fromJust $ lookup varName bvs
-      lastVal = latestVal boolVar
-      hasUd = hasUpdated boolVar
-      hasErr = hasError boolVar
+  let (pairFun, diff) = funs pred
+      unv2' = (un2, offs2+diff)
+  parts <- sequence $ [ pairFun (unv1 `refAt` i) (unv2' `refAt` i)
+                      | i <- union (range unv1) (range unv2') ]
+  andl (tt:parts)
+ where funs Equals = (eq2, 0)
+       funs LessThanEq = (impl2, 0)
+       funs LessThan = (impl2, -1)
+       funs GreaterThanEq = (flip impl2, 0)
+       funs GreaterThan = (flip impl2, 1)
 
-  (lastVal', hasUpdated', hasError') <-
-    updateRef (lastVal, hasUd, hasErr, shouldUpdate, newVal)
+updateToLava :: Ref -> VarMap -> Update -> L VarMap
+updateToLava shouldUpdate vm (AssignInt varName expr) = 
+ do
+  let var = fromJust $ lookup varName vm
+      (lastVal, offs) = latestVal var
+      hasUd = hasUpdated var
+      hasErr = hasError var      
+      
+      (newVal, _) =
+       case (expr) of --TODO: offset!
+            (IntConst n) -> constUn n (length lastVal)
+            (IntVar x) -> latestVal $ fromJust $ lookup x vm
     
-  let newBoolVarState = CS { origVal = origVal boolVar
-                           , latestVal = lastVal' 
-                           , hasUpdated = hasUpdated'
-                           , hasError = hasError'
-                           }
+  (lastVal', hasUpdated', hasError') <-
+    updateRefs (lastVal, hasUd, hasErr, shouldUpdate, newVal)
 
-  return $ replaceAt (varName, newBoolVarState) bvs
+  let newVarState = CS { origVal = origVal var
+                       , latestVal = (lastVal', offs)
+                       , hasUpdated = hasUpdated'
+                       , hasError = hasError'
+                       }
+
+  return $ replaceAt (varName, newVarState) vm
+
+
+constUn :: Int -> Int -> Un
+constUn n max = ( [ if (i<n) then tt else ff | i <- [0 .. (max-1)] ]
+                , 0)
   
 at :: Eq a => [(a,b)] -> a -> b
 m `at` i = fromJust $ lookup i m
@@ -313,6 +384,10 @@ replaceAt (key, new) ((key', old):ps)
 replaceAtIndex :: Int -> a -> [a] -> [a]
 replaceAtIndex n item ls =
  a ++ (item:b) where (a, (_:b)) = splitAt n ls
+
+
+-- TODO: re-write this with some sort of typeclass!
+-- For Un, single Refs and other unknown Ref-lists there will be no effect except maybe hides implementation. For OneHots, that thing we do with picking only the refs that need updating is moved here instead.
 
 -- input: lastval, hasUpdated, hasError, shouldUpdate, newVal
 -- Output: lastval', hasUpdated', hasError'
@@ -332,6 +407,18 @@ updateRef (a, b, c, d, e) =
 
 
 
+
+varFlop :: Variable -> L UnaryFlop
+varFlop v =
+ let (L m0) = sequence [ flop (Just (i <= (initial v)))
+                       | i <- [((lower v)+1) .. (upper v)] ]
+ in L (\n0 -> let (tups, n1, gs1) = m0 n0
+                  (ins, outs)     = unzip tups
+                  outApp          = (zipWith ($) outs)
+              in ( ( ( ins ,lower v)
+                   , sequence_ . outApp . fst )
+                 , n1, gs1 )
+      )    
 
 
 locationOH :: Automaton -> L (IndexedOneHotFlop Location)
