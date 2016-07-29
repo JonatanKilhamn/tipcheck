@@ -22,10 +22,13 @@ import GHC.Exts
 type OneHot = [Ref]
 type IndexedOneHot k = [(k, Ref)]
 type Bin = [Ref]
+type Un = [Ref]
 
-type Un = ([Ref], Int)
+type IntVariable = ([Ref], Int)
 
-refAt :: Un -> Int -> Ref
+
+
+refAt :: IntVariable -> Int -> Ref
 (refs,offset) `refAt` i =
  let below = i <= offset
      above = i > offset + length refs
@@ -34,8 +37,8 @@ refAt :: Un -> Int -> Ref
          (_, True) -> ff
          (_,_) -> refs !! (i - offset - 1)
 
-isValidUn :: Un -> Bool
-isValidUn un@(refs,offset) =
+isValidIV :: IntVariable -> Bool
+isValidIV un@(refs,offset) =
  and [ okay (refAt un i) (refAt un (i+1))
      | i <- range un ]
   where okay a b = case (a,b) of
@@ -43,14 +46,14 @@ isValidUn un@(refs,offset) =
                         (Bool False, _) -> False
                         (_, _) -> True
 
-range :: Un -> [Int]
+range :: IntVariable -> [Int]
 range (rs, o) = [o..(o + length rs)]
 
 --type UnaryVariable = (Un, Variable)
 
 type Flop a = (a, a -> L ())
 
-type UnaryFlop = Flop Un
+type UnaryFlop = Flop IntVariable
 
 type OneHotFlop = Flop OneHot --(OneHot, OneHot -> L ())
 type IndexedOneHotFlop k = Flop (IndexedOneHot k)--(IndexedOneHot k, (IndexedOneHot k) -> L ())
@@ -70,7 +73,7 @@ newState a = CS { origVal = a
                 }
 
 type CLocation = CState (IndexedOneHot Location)
-type CVariable = CState Un
+type CVariable = CState IntVariable
 type CEvent = Ref
 
 
@@ -91,7 +94,7 @@ data PartialSynchCircuit
 
 type LocationRefMap = [(Name, IndexedOneHot Location)]
 
-type VarRefMap = [(VarName, Un)]
+type VarRefMap = [(VarName, IntVariable)]
 
 type EventRefMap = [(Event, Ref)]
 
@@ -302,35 +305,35 @@ guardToLava vrm (GInt pred x exp) =
  do 
   let un = fromJust $ lookup x vrm
   case (exp) of
-       (IntConst i) -> compareUnaryConstant pred un i
-       (IntVar y) -> compareUnaries pred un (fromJust $ lookup y vrm)
+       (IntConst i) -> compareIVConstant pred un i
+       (IntVar y) -> compareIntVariables pred un (fromJust $ lookup y vrm)
        (Plus e1 e2) -> undefined --case (intExprToUn
        --TODO: recursion to handle plus and minus
 
 
 -- TODO
-unaryPlus :: Un -> Un -> L Un
+unaryPlus :: IntVariable -> IntVariable -> L IntVariable
 unaryPlus = undefined
 
-unaryMinus :: Un -> Un -> L Un
+unaryMinus :: IntVariable -> IntVariable -> L IntVariable
 unaryMinus = undefined
 
 
 
-compareUnaryConstant :: BinaryPred -> Un -> Int -> L Ref
-compareUnaryConstant pred un n =
+compareIVConstant :: BinaryPred -> IntVariable -> Int -> L Ref
+compareIVConstant pred un n =
  case (pred) of
       (Equals) -> and2 (un `refAt` n) (neg (un `refAt` (n+1)))
       (LessThan) -> return $ neg $ un `refAt` n
-      (GreaterThanEq) -> fmap neg (compareUnaryConstant LessThan un n)
-      (LessThanEq) -> compareUnaryConstant LessThan un (n+1)
-      (GreaterThan) -> compareUnaryConstant GreaterThanEq un (n+1)
+      (GreaterThanEq) -> fmap neg (compareIVConstant LessThan un n)
+      (LessThanEq) -> compareIVConstant LessThan un (n+1)
+      (GreaterThan) -> compareIVConstant GreaterThanEq un (n+1)
       
 
 
-compareUnaries :: BinaryPred -> Un -> Un -> L Ref
-compareUnaries pred unv1 unv2@([],o) = compareUnaryConstant pred unv1 o
-compareUnaries pred unv1@(un1,offs1) unv2@(un2,offs2) =
+compareIntVariables :: BinaryPred -> IntVariable -> IntVariable -> L Ref
+compareIntVariables pred unv1 unv2@([],o) = compareIVConstant pred unv1 o
+compareIntVariables pred unv1@(un1,offs1) unv2@(un2,offs2) =
  do
   let (pairFun, diff) = funs pred
       unv2' = (un2, offs2+diff)
@@ -347,20 +350,17 @@ updateToLava :: Ref -> VarMap -> Update -> L VarMap
 updateToLava shouldUpdate vm (AssignInt varName expr) = 
  do
   let var = fromJust $ lookup varName vm
-      (lastVal, offs) = latestVal var
+      lastVal = latestVal var
       hasUd = hasUpdated var
       hasErr = hasError var      
       
-      (newVal, _) =
-       case (expr) of --TODO: offset!
-            (IntConst n) -> constUn n (length lastVal)
-            (IntVar x) -> latestVal $ fromJust $ lookup x vm
+  newVal <- intExprToIntVar vm expr
     
   (lastVal', hasUpdated', hasError') <-
-    updateRefs (lastVal, hasUd, hasErr, shouldUpdate, newVal)
+    updateIntVar (lastVal, hasUd, hasErr, shouldUpdate, newVal)
 
   let newVarState = CS { origVal = origVal var
-                       , latestVal = (lastVal', offs)
+                       , latestVal = lastVal'
                        , hasUpdated = hasUpdated'
                        , hasError = hasError'
                        }
@@ -368,9 +368,32 @@ updateToLava shouldUpdate vm (AssignInt varName expr) =
   return $ replaceAt (varName, newVarState) vm
 
 
-constUn :: Int -> Int -> Un
-constUn n max = ( [ if (i<n) then tt else ff | i <- [0 .. (max-1)] ]
-                , 0)
+intExprToIntVar :: VarMap -> IntExpr -> L IntVariable
+intExprToIntVar vm (IntConst n) = return ([],n)
+intExprToIntVar vm (IntVar x) = return . latestVal . fromJust . (lookup x) $ vm
+intExprToIntVar vm (Plus e1 e2) =
+ do
+  (refs1, offs1) <- intExprToIntVar vm e1
+  (refs2, offs2) <- intExprToIntVar vm e2
+  refs <- if (refs2 == []) then return refs1 else mergesortl (refs1++refs2)
+  return (refs, offs1+offs2)
+intExprToIntVar vm (Minus e1 (IntConst n)) =
+ do
+  (refs1, offs1) <- intExprToIntVar vm e1
+  return (refs1, offs1-n)
+intExprToIntVar vm (Minus e1 e2) =
+ do
+  (refs1, offs1) <- intExprToIntVar vm e1
+  (refs2, offs2) <- intExprToIntVar vm e2
+  --refs <- mergesortl (refs1++refs2)
+  -- TODO: minus in the general case...
+  return undefined
+
+
+
+constIV :: Int -> Int -> IntVariable
+constIV n max = ( [ if (i<n) then tt else ff | i <- [0 .. (max-1)] ]
+                  , 0)
   
 at :: Eq a => [(a,b)] -> a -> b
 m `at` i = fromJust $ lookup i m
@@ -406,6 +429,17 @@ updateRef (a, b, c, d, e) =
     return (f,g,h)
 
 
+updateIntVar :: (IntVariable, Ref, Ref, Ref, IntVariable) ->
+ L (IntVariable, Ref, Ref)
+updateIntVar (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
+ do let newRefs = [ newVal `refAt` i | i <- range lastVal ]
+        (oldRefs, offset) = lastVal
+    (nextRefs, hasUpdated', hasError') <-
+      updateRefs (oldRefs, hasUpdated, hasError, shouldUpdate, newRefs)
+    let overFlow = newVal `refAt` ((last $ range lastVal) + 1)
+        underFlow = neg $ newVal `refAt` ((head $ range lastVal) - 1)
+    hasError'' <- orl [overFlow, underFlow, hasError']
+    return ((nextRefs, offset), hasUpdated', hasError'')
 
 
 varFlop :: Variable -> L UnaryFlop
@@ -415,8 +449,8 @@ varFlop v =
  in L (\n0 -> let (tups, n1, gs1) = m0 n0
                   (ins, outs)     = unzip tups
                   outApp          = (zipWith ($) outs)
-              in ( ( ( ins ,lower v)
-                   , sequence_ . outApp . fst )
+              in ( ( (ins, lower v)
+                   , sequence_ . outApp . fst) -- TODO: what happens when the output var has a different offset?
                  , n1, gs1 )
       )    
 

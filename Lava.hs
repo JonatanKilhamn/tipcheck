@@ -1,6 +1,6 @@
 module Lava where
 
-import Control.Monad( ap )
+import Control.Monad
 import Circuit
 
 --------------------------------------------------------------------------------
@@ -108,6 +108,56 @@ eql (x:xs) (y:ys) =
   do e <- eq2 x y
      es <- eql xs ys
      and2 e es
+
+
+
+mergesortl :: [Ref] -> L [Ref]
+mergesortl refs =
+ do
+  let n = (last $ takeWhile (<= length refs) (iterate (*2) 1)) +1
+      pairs = oddeven_merge_sort n
+      newRefs = refs ++ [ ff | i <- [(length refs)+1 .. n] ]
+  foldM applyCompareSwitch newRefs pairs
+
+
+applyCompareSwitch :: [Ref] -> (Int, Int) -> L [Ref]
+applyCompareSwitch refs (i, j) =
+ do
+  let (a,b) = (refs!!i,refs!!j)
+  low <- or2 a b
+  high <- and2 a b
+  return [ case k of k | k == i -> low
+                       | k == j -> high
+                       | otherwise -> refs !! k
+         | k <- [0..(length refs)-1] ]
+
+oddeven_merge_sort :: Int -> [(Int,Int)]
+oddeven_merge_sort length = oddeven_merge_sort_range 0 (length - 1)
+
+oddeven_merge_sort_range :: Int -> Int -> [(Int,Int)]
+oddeven_merge_sort_range lo hi
+ | hi - lo >= 1 =
+   let mid = lo + ((hi - lo) `quot` 2) in
+    ( oddeven_merge_sort_range lo mid ++
+      oddeven_merge_sort_range (mid + 1) hi ++
+      oddeven_merge lo hi 1 )
+ | otherwise = []
+
+oddeven_merge :: Int -> Int -> Int -> [(Int, Int)]
+oddeven_merge lo hi r =
+ let step = r * 2 in
+  if (step < hi - lo)
+  then ( oddeven_merge lo hi step ++
+         oddeven_merge (lo + r) hi step ++
+         [ (i, i + r)
+         | i <- [lo + r .. hi - r]
+           , quot i step == quot (lo+r) step
+         ] )
+  else [(lo, lo + r)]
+
+
+
+
      
 isOH :: [Ref] -> L Ref
 isOH xs =
