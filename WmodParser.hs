@@ -18,11 +18,11 @@ readWmodFile fp =
        (Nothing) -> return emptySynch
 
 main :: IO Synchronisation
-main = readWmodFile "Examples/false_guard.wmod"
+main = readWmodFile "Examples/test_foo.wmod"
        --"Examples/cat_mouse.wmod"
 
 debug :: IO String
-debug = readFile "Examples/cat_mouse.wmod"
+debug = readFile "Examples/test_foo.wmod"
 
 
 
@@ -60,7 +60,6 @@ parseWmodXml cs =
        vcElems = mapMaybe getElem vcConts
    -- set initial values of variables
    synch2 <- foldM setVarInitAndRange synch1 vcElems
-   -- TODO
    
    return synch2
    
@@ -138,15 +137,18 @@ parseTransition e
    -- handle guards:
    
    guardBlock <- firstOccurrence (elemName "Guards") getElem (elContent e)
-   let exprElems = mapMaybe getElem (elContent guardBlock)
-       gs = mapMaybe (exprToGuard <=< parseExpr) exprElems
+   let guardExprElems = mapMaybe getElem (elContent guardBlock)
+       gs = mapMaybe (exprToGuard <=< parseExpr) guardExprElems
    
-   -- TODO handle updates
+   updateBlock <- firstOccurrence (elemName "Actions") getElem (elContent e)
+   let updateExprElems = mapMaybe getElem (elContent guardBlock)
+       uds = mapMaybe (exprToUpdate <=< parseExpr) updateExprElems
+   
    
    return [ Trans { start = from
                   , event = name
                   , guards = gs
-                  , updates = []
+                  , updates = uds
                   , end = to
                   , uncontrollable = False
                   }
@@ -218,6 +220,18 @@ exprToGuard (BO OpEquals e1 e2) = toGuard e1 e2
        toGuard _ _ = Nothing
 exprToGuard _ = Nothing
 -- TODO: comparison operators other than equals
+-- TODO: recursive expressions
+
+
+
+exprToUpdate :: Expr -> Maybe Update
+exprToUpdate (BO OpAssign e1 e2) = toUpdate e1 e2
+ where toUpdate (Var x) (Const n) = return $ AssignInt x (IntConst n)
+       toUpdate a@(Const n) b@(Var x) = toUpdate b a
+       toUpdate _ _ = Nothing
+exprToUpdate _ = Nothing
+-- TODO: recursive expressions
+
 
 setVarInitAndRange :: Synchronisation -> Element -> Maybe Synchronisation
 setVarInitAndRange s e
@@ -306,10 +320,10 @@ parseBinaryOperator e
  = case (getAttribute "Operator" e) of
         (Just "==")   -> return OpEquals
         (Just "=")    -> return OpAssign
-        (Just "&lt;") -> return OpLessThan
-        (Just "&gt;") -> return OpGreaterThan
+        (Just "<") -> return OpLessThan
+        (Just ">") -> return OpGreaterThan
         (Just "&le;") -> return OpLessThanEq
-        (Just "&lg;") -> return OpGreaterThanEq
+        (Just "&ge;") -> return OpGreaterThanEq
         (Just "+")    -> return OpPlus
         (Just "-")    -> return OpMinus
         (Just "..")   -> return OpRange
