@@ -140,6 +140,8 @@ parseTransition e
    let guardExprElems = mapMaybe getElem (elContent guardBlock)
        gs = mapMaybe (exprToGuard <=< parseExpr) guardExprElems
    
+   -- handle updates:
+   
    updateBlock <- firstOccurrence (elemName "Actions") getElem (elContent e)
    let updateExprElems = mapMaybe getElem (elContent guardBlock)
        uds = mapMaybe (exprToUpdate <=< parseExpr) updateExprElems
@@ -214,23 +216,24 @@ flattenContent = foldr expandAndAdd []
 
 
 exprToGuard :: Expr -> Maybe Guard
-exprToGuard (BO OpEquals e1 e2) = toGuard e1 e2
- where toGuard (Var x) (Const n) = return $ GInt Equals x (IntConst n)
-       toGuard a@(Const n) b@(Var x) = toGuard b a
-       toGuard _ _ = Nothing
+exprToGuard (BO op (Var x) e) =
+ liftM2 (\ie -> \p -> GInt p x ie) (toIntExpr e) (toPred op)
 exprToGuard _ = Nothing
--- TODO: comparison operators other than equals
--- TODO: recursive expressions
-
 
 
 exprToUpdate :: Expr -> Maybe Update
-exprToUpdate (BO OpAssign e1 e2) = toUpdate e1 e2
- where toUpdate (Var x) (Const n) = return $ AssignInt x (IntConst n)
-       toUpdate a@(Const n) b@(Var x) = toUpdate b a
-       toUpdate _ _ = Nothing
+exprToUpdate (BO OpAssign (Var x) e) =
+ liftM (AssignInt x) (toIntExpr e)
 exprToUpdate _ = Nothing
--- TODO: recursive expressions
+
+toIntExpr :: Expr -> Maybe IntExpr
+toIntExpr (Const n) = return $ IntConst n
+toIntExpr (Var x) = return $ IntVar x
+toIntExpr (BO OpPlus e1 e2) = liftM2 Plus (toIntExpr e1) (toIntExpr e2)
+toIntExpr (BO OpMinus e1 e2) = liftM2 Minus (toIntExpr e1) (toIntExpr e2)
+toIntExpr _ = Nothing
+
+
 
 
 setVarInitAndRange :: Synchronisation -> Element -> Maybe Synchronisation
@@ -311,8 +314,15 @@ data BinaryOp
  | OpMinus
  | OpAnd
  | OpRange
-  deriving ( Show )
+  deriving ( Show, Eq )
 
+toPred :: BinaryOp -> Maybe BinaryPred
+toPred op = lookup op opToPred
+ where opToPred = [ (OpEquals, Equals)
+                  , (OpLessThan, LessThan)
+                  , (OpLessThanEq, LessThanEq)
+                  , (OpGreaterThan, GreaterThan)
+                  , (OpGreaterThanEq, GreaterThanEq) ]
 
 -- TODO: does the format ever use AND?
 parseBinaryOperator :: Element -> Maybe BinaryOp
