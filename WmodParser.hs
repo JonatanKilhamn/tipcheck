@@ -18,7 +18,7 @@ readWmodFile fp =
        (Nothing) -> return emptySynch
 
 main :: IO Synchronisation
-main = readWmodFile "Examples/test_foo.wmod"
+main = readWmodFile "Examples/odd_guard1.wmod"
        --"Examples/cat_mouse.wmod"
 
 debug :: IO String
@@ -136,15 +136,23 @@ parseTransition e
        
    -- handle guards:
    
-   guardBlock <- firstOccurrence (elemName "Guards") getElem (elContent e)
-   let guardExprElems = mapMaybe getElem (elContent guardBlock)
-       gs = mapMaybe (exprToGuard <=< parseExpr) guardExprElems
+   let gb = firstOccurrence (elemName "Guards") getElem (elContent e)
+       gs =
+        case (gb) of
+             (Nothing) -> []
+             (Just guardBlock) ->
+              let guardExprElems = mapMaybe getElem (elContent guardBlock) in
+              mapMaybe (exprToGuard <=< parseExpr) guardExprElems
    
    -- handle updates:
    
-   updateBlock <- firstOccurrence (elemName "Actions") getElem (elContent e)
-   let updateExprElems = mapMaybe getElem (elContent guardBlock)
-       uds = mapMaybe (exprToUpdate <=< parseExpr) updateExprElems
+   let ub = firstOccurrence (elemName "Actions") getElem (elContent e)
+       uds =
+        case (ub) of
+             (Nothing) -> []
+             (Just updateBlock) ->
+              let updateExprElems = mapMaybe getElem (elContent updateBlock) in
+              mapMaybe (exprToUpdate <=< parseExpr) updateExprElems
    
    
    return [ Trans { start = from
