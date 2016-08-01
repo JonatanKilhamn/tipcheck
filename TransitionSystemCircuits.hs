@@ -375,7 +375,11 @@ intExprToIntVar vm (Plus e1 e2) =
  do
   (refs1, offs1) <- intExprToIntVar vm e1
   (refs2, offs2) <- intExprToIntVar vm e2
-  refs <- if (refs2 == []) then return refs1 else mergesortl (refs1++refs2)
+  refs <- 
+   case (refs1,refs2) of
+        ([],_) -> return refs2
+        (_,[]) -> return refs1
+        (_,_) -> mergesortl (refs1++refs2)
   return (refs, offs1+offs2)
 intExprToIntVar vm (Minus e1 (IntConst n)) =
  do
@@ -432,13 +436,15 @@ updateRef (a, b, c, d, e) =
 updateIntVar :: (IntVariable, Ref, Ref, Ref, IntVariable) ->
  L (IntVariable, Ref, Ref)
 updateIntVar (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
- do let newRefs = [ newVal `refAt` i | i <- range lastVal ]
+ do let newRefs = tail [ newVal `refAt` i | i <- range lastVal ]
         (oldRefs, offset) = lastVal
     (nextRefs, hasUpdated', hasError') <-
       updateRefs (oldRefs, hasUpdated, hasError, shouldUpdate, newRefs)
-    let overFlow = newVal `refAt` ((last $ range lastVal) + 1)
-        underFlow = neg $ newVal `refAt` ((head $ range lastVal) - 1)
-    hasError'' <- orl [overFlow, underFlow, hasError']
+    let overFlowRef = newVal `refAt` ((last $ range lastVal) + 1)
+        underFlowRef = neg $ newVal `refAt` ((head $ range lastVal) - 1)
+    overFlowError <- and2 shouldUpdate overFlowRef
+    underFlowError <- and2 shouldUpdate underFlowRef
+    hasError'' <- orl [overFlowError, underFlowError, hasError']
     return ((nextRefs, offset), hasUpdated', hasError'')
 
 
