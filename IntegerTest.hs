@@ -2,6 +2,7 @@ module IntegerTest where
 
 import TransitionSystem
 import TransitionSystemCircuits
+import WmodParser
 import Lava
 import Data.Maybe
 import Circuit
