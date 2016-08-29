@@ -34,11 +34,21 @@ data IntExpr
  | IntVar VarName
   deriving ( Show )
 
+varNames :: IntExpr -> [VarName]
+varNames (IntVar vn) = [vn]
+varNames (Plus ie1 ie2) = union (varNames ie1) (varNames ie2)
+varNames (Minus ie1 ie2) = union (varNames ie1) (varNames ie2)
+varNames _ = []
+
 data Guard = GInt BinaryPred VarName IntExpr
   deriving ( Show )
 
 guardVarName :: Guard -> VarName
 guardVarName (GInt _ x _) = x
+
+guardVarNames :: Guard -> [VarName]
+guardVarNames (GInt _ x exp) = union [x] (varNames exp)
+
 
 
 data BinaryPred
@@ -58,7 +68,9 @@ data Update
 updateVarName :: Update -> VarName
 updateVarName (AssignInt x _) = x
 
- 
+updateVarNames :: Update -> [VarName]
+updateVarNames (AssignInt x exp) = union [x] (varNames exp)
+
 
 {-data UnaryOp
  = Inv -- TODO: which unary operators are there?
@@ -141,7 +153,7 @@ events a = ordNub $ map event (transitions a)
 getAllVars :: Automaton -> M.Map VarName Variable
 getAllVars a = M.fromList $ zip varNames (repeat unknownVar)
  where varNames = ordNub $ concat $ map varNames' (transitions a)
-       varNames' t = (map guardVarName (guards t)) ++ (map updateVarName (updates t))
+       varNames' t = concat $ (map guardVarNames (guards t)) ++ (map updateVarNames (updates t))
        unknownVar = Variable {lower = 0, upper = 1, initial = 0}
 
 

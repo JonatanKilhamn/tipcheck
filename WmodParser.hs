@@ -18,7 +18,7 @@ readWmodFile fp =
        (Nothing) -> return emptySynch
 
 main :: IO Synchronisation
-main = readWmodFile "Examples/odd_guard1.wmod"
+main = readWmodFile "Examples/simple_selfloop.wmod"
        --"Examples/cat_mouse.wmod"
 
 debug :: IO String
@@ -251,11 +251,13 @@ setVarInitAndRange s e
   do
    name <- getAttribute "Name" e 
    rangeElem <- firstOccurrence (elemName "VariableRange") getElem (elContent e)
-   rangeExpr <- firstOccurrence (elemName "BinaryExpression")
-                                (getElem >=> parseExpr)
-                                (elContent  rangeElem)
+   rangeBinExpr <- firstOccurrence
+                   (\x -> or $ map (flip elemName x) ["BinaryExpression",
+                                                      "EnumSetExpression"])
+                   (getElem >=> parseExpr)
+                   (elContent  rangeElem)
    (min, max) <-
-    case (rangeExpr) of
+    case (rangeBinExpr) of
          (BO OpRange (Const i) (Const j)) -> Just (i,j)
          (_) -> Nothing
          
@@ -290,6 +292,14 @@ parseExpr e
    arg1 <- parseExpr $ args!!0
    arg2 <- parseExpr $ args!!1
    return $ BO op arg1 arg2
+ | getElemName e == "EnumSetExpression" =
+  do
+   let args = mapMaybe getElem (elContent e)
+   enumNames <- mapM parseExpr args
+   case (enumNames) of
+        [Var "on", Var "off"] -> return $ BO OpRange (Const 0) (Const 1)
+        _ -> Nothing
+
  | getElemName e == "UnaryExpression" =
   do
    return undefined
