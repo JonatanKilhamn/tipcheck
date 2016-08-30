@@ -32,7 +32,7 @@ data IntExpr
  | Plus IntExpr IntExpr
  | Minus IntExpr IntExpr
  | IntVar VarName
-  deriving ( Show )
+  deriving ( Show, Eq )
 
 varNames :: IntExpr -> [VarName]
 varNames (IntVar vn) = [vn]
@@ -41,7 +41,7 @@ varNames (Minus ie1 ie2) = union (varNames ie1) (varNames ie2)
 varNames _ = []
 
 data Guard = GInt BinaryPred VarName IntExpr
-  deriving ( Show )
+  deriving ( Show, Eq )
 
 guardVarName :: Guard -> VarName
 guardVarName (GInt _ x _) = x
@@ -57,7 +57,7 @@ data BinaryPred
  | LessThanEq
  | GreaterThan
  | GreaterThanEq
-  deriving ( Show )
+  deriving ( Show, Eq )
  
 
 
@@ -111,12 +111,27 @@ data Transition
   , end     :: Location
   , uncontrollable :: Bool
   }
-  deriving ( Show )
 
-
+instance Show Transition where
+  show trans = unlines $
+    [ (show $ event trans) ++ ": " ++
+      (show $ start trans) ++ "-->" ++ (show $ end trans) ++
+      (if (uncontrollable trans) then " (UNCONTR)" else "")
+    ] ++
+    [ "GUARDS"
+    | not (null (guards trans))
+    ] ++
+    [ "  " ++ (show g)
+    | g <- guards trans
+    ] ++
+    [ "UPDATES"
+    | not (null (updates trans))
+    ] ++
+    [ "  " ++ (show u)
+    | u <- updates trans
+    ]
 
 type Predicate = (Location, [Guard])
-
 
 -- TODO: current structure does not prohibit one automaton
 -- from having several transitions from the same location,
@@ -132,7 +147,24 @@ data Automaton
   , marked :: [Predicate]
   , initialLocation:: Location
   }
-  deriving ( Show )
+
+instance Show Automaton where
+  show aut = unlines $
+    [ "NAME: " ++ autName aut ] ++
+    [ "TRANSITIONS:"
+    | not (null (transitions aut))
+    ] ++
+    [ "  " ++ (show t)
+    | t <- transitions aut
+    ] ++
+    [ "MARKED:"
+    | not (null (marked aut))
+    ] ++
+    [ "  " ++ (if (gs == []) then (show (l,True)) else show (l,gs))
+    | (l,gs) <- marked aut
+    ] ++
+    [ "INITIAL: " ++ (show $ initialLocation aut)
+    ]
 
 
 
@@ -144,7 +176,14 @@ data Synchronisation
   --, allIntVars :: M.Map BoolVar (Value)
   --, synchLog :: String
   }
- deriving ( Show )
+
+instance Show Synchronisation where
+  show synch = unlines $
+    [ "=== SYNCHRONISATION ==="] ++
+    [ "#AUTOMATA: " ++ (show $ length $ automata synch) ] ++
+    [ "AUT. No "++ (show i) ++ " " ++ (show a)
+    | (a,i) <- zip (automata synch) [1..]
+    ]
 
 events :: Automaton -> [Event]
 events a = ordNub $ map event (transitions a)
