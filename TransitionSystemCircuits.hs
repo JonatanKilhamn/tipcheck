@@ -450,13 +450,15 @@ updateIntVar (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
 
 varFlop :: Variable -> L UnaryFlop
 varFlop v =
- let (L m0) = sequence [ flop (Just (i <= (initial v)))
-                       | i <- [((lower v)+1) .. (upper v)] ]
+ let range = [((lower v)+1) .. (upper v)]
+     (L m0) = sequence [ flop (Just (i <= (initial v)))
+                       | i <- range ]
  in L (\n0 -> let (tups, n1, gs1) = m0 n0
                   (ins, outs)     = unzip tups
                   outApp          = (zipWith ($) outs)
+                  getRefs         = \iv -> (map (refAt iv) range)
               in ( ( (ins, lower v)
-                   , sequence_ . outApp . fst) -- TODO: what happens when the output var has a different offset?
+                   , sequence_ . outApp . getRefs)
                  , n1, gs1 )
       )    
 
