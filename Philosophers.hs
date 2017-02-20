@@ -51,14 +51,14 @@ philosopher (p, max) = Aut { autName = "p"++this
                    , guards = takeLeftGuards
                    , updates = [AssignInt ("hl"++this) (IntConst 1)]
                    , end = idle
-                   , uncontrollable = False
+                   , uncontrollable = True
                    }
   takeRight = Trans { start = idle
                     , event = "tr"++this
                     , guards = takeRightGuards
                     , updates = [AssignInt ("hr"++this) (IntConst 1)]
                     , end = idle
-                    , uncontrollable = False
+                    , uncontrollable = True
                     }
   eat = Trans { start = idle
               , event = "eat"++this
@@ -72,12 +72,12 @@ philosopher (p, max) = Aut { autName = "p"++this
                   , guards = []
                   , updates = putDownUpdates
                   , end = idle
-                  , uncontrollable = False
+                  , uncontrollable = True
                   }
-  takeLeftGuards = [ GInt Equals ("hl"++this) (IntConst 0)
-                   , GInt Equals ("hr"++left) (IntConst 0)]
-  takeRightGuards = [ GInt Equals ("hr"++this) (IntConst 0)
-                    , GInt Equals ("hl"++right) (IntConst 0)]
+  takeLeftGuards = [ GInt Equals ("hl"++this) (IntConst 0)]
+                   --, GInt Equals ("hr"++left) (IntConst 0)]
+  takeRightGuards = [ GInt Equals ("hr"++this) (IntConst 0)]
+                    --, GInt Equals ("hl"++right) (IntConst 0)]
   eatGuards = [ GInt Equals ("hl"++this) (IntConst 1)
               , GInt Equals ("hr"++this) (IntConst 1)]
   putDownUpdates = [ AssignInt ("hl"++this) (IntConst 0)
@@ -104,6 +104,12 @@ phils_prop n =
                    ]
      b1 <- orl held_twice
      
+     -- phil_0 never holding both eir forks:
+     b2 <- and2 ((holdingLeft sc 0)!!0) ((heldByLeft sc 1)!!0)
+     
+     
+     let b3 = isEating sc 0
+     
      let uc = anyUncontr sc
      
      
@@ -117,7 +123,7 @@ phils_prop n =
      -- props
      return $ props
        { always = [neg err]
-       , nevers  = [b1] --map snd $ boolVarRefs sc
+       , nevers  = [b1] --held_twice --map snd $ boolVarRefs sc
        , finites = []
        }
  where
@@ -126,14 +132,15 @@ phils_prop n =
    right p = show $ (p+1) `mod` n
    holdingLeft sc p = fst . fromJust $ lookup ("hl"++this p) (varRefs sc)
    heldByLeft sc p = fst . fromJust $ lookup ("hr"++left p) (varRefs sc)
+   isEating sc p = fromJust $ lookup "eating" $ fromJust $ lookup ("p"++this p) (locRefs sc)
    
 
 phils_c :: Int -> Circuit
 phils_c = circuit . phils_prop   
    
 main :: IO ()
-main = writeCircuit "Examples/phils2" (phils_c 2)
-   
+main = writeCircuit "examples/phils2" (phils_c 2)
+
 --------------------------------------------------------------------------------
 -- Step example
 
@@ -145,9 +152,10 @@ oneHotBool (val, max) = [ if (i == val) then True else False | i <- [1..max] ]
 
 -- Output: last_constrs, bads, Circuit
 stepsPhils :: Int -> [[Bool]] -> (Bool,[Bool],Circuit)
-stepsPhils n inputs = foldl foldableSteps (False,[],phils_c n) inputs
+stepsPhils n inputs = foldl foldableSteps (False,[],circ) inputs
  where
-  size = length $ head inputs
+  circ = phils_c n
+  size = length $ flops circ
   foldableSteps (_,_,c) ins = step c (none size) ins
 
 

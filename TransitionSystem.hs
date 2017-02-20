@@ -53,6 +53,7 @@ guardVarNames (GInt _ x exp) = union [x] (varNames exp)
 
 data BinaryPred
  = Equals
+ | NEquals
  | LessThan
  | LessThanEq
  | GreaterThan

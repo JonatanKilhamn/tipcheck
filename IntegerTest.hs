@@ -122,7 +122,10 @@ oneHotBool (val, max) = [ if (i == val) then True else False | i <- [1..max] ]
 steps :: [[Bool]] -> (Bool,[Bool],Circuit)
 steps inputs = foldl foldableSteps (False,[],auto_c) inputs
  where
-  foldableSteps (_,_,c) ins = step c (none . length . flops $ auto_c) ins
+  size = length $ flops auto_c
+  foldableSteps (_,_,c) ins = step c (none size) ins
+
+
 
 
 none :: Int -> [Bool]

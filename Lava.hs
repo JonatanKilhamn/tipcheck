@@ -64,6 +64,13 @@ flop init =
                def x = L (\n -> ((), n, [(z, Flop init x)]))
             in n `seq` ((Pos z,def), n+1, []))
 
+namedFlop :: String -> Maybe Bool -> L (Ref, Ref -> L ())
+namedFlop name init =
+  L (\n -> let z     = "R" ++ (show n) ++ "_" ++ name
+               def x = L (\n -> ((), n, [(z, Flop init x)]))
+            in n `seq` ((Pos z,def), n+1, []))
+
+
 --------------------------------------------------------------------------------
 -- derived gates
 

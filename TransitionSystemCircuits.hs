@@ -115,6 +115,11 @@ data SynchCircuit
 processSystem :: Synchronisation -> L SynchCircuit
 processSystem s =
    do
+   
+     -- the first latch should store the uncontrollability state
+     
+     uncontrFlop <- namedFlop "uncont" (Just False)
+    
      -- input processing
      evRefs <- sequence [ input | x <- allEvents s]
 
@@ -139,11 +144,15 @@ processSystem s =
                      , varMap = vs
                      , eventMap   = evm
                      , globalError = ff
-                     , uncontr = ff
+                     , uncontr = (fst uncontrFlop)
                      }
      
      -- process each automaton
      state1 <- foldM processAutomaton state (automata s)
+
+     -- set updated uncontrollability flop
+     _ <- (snd uncontrFlop) (uncontr state1)
+     --_ <- (snd uncontrFlop) (tt)
 
      -- set the updated location values
      let newLocs = map (latestVal . snd) (locMap state1)
@@ -168,7 +177,7 @@ processSystem s =
      validInput <- isOH evRefs
      error1 <- or2 localError (neg validInput)
      finalError <- or2 error1 (globalError state1)
-     
+          
      -- output
      let circuit = SynchC { locRefs = zip autNames newLocs
                           , varRefs = zip allVarNames newVars
@@ -324,6 +333,7 @@ compareIVConstant :: BinaryPred -> IntVariable -> Int -> L Ref
 compareIVConstant pred un n =
  case (pred) of
       (Equals) -> and2 (un `refAt` n) (neg (un `refAt` (n+1)))
+      (NEquals) -> fmap neg (compareIVConstant Equals un n)
       (LessThan) -> return $ neg $ un `refAt` n
       (GreaterThanEq) -> fmap neg (compareIVConstant LessThan un n)
       (LessThanEq) -> compareIVConstant LessThan un (n+1)
@@ -333,6 +343,7 @@ compareIVConstant pred un n =
 
 compareIntVariables :: BinaryPred -> IntVariable -> IntVariable -> L Ref
 compareIntVariables pred unv1 unv2@([],o) = compareIVConstant pred unv1 o
+compareIntVariables NEquals unv1 unv2 = fmap neg $ compareIntVariables Equals unv1 unv2
 compareIntVariables pred unv1@(un1,offs1) unv2@(un2,offs2) =
  do
   let (pairFun, diff) = funs pred
