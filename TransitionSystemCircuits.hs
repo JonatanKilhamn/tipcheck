@@ -27,7 +27,6 @@ type Un = [Ref]
 type IntVariable = ([Ref], Int)
 
 
-
 refAt :: IntVariable -> Int -> Ref
 (refs,offset) `refAt` i =
  let below = i <= offset
@@ -116,9 +115,9 @@ processSystem :: Synchronisation -> L SynchCircuit
 processSystem s =
    do
    
+     -- uncontr flop currently UNUSED
      -- the first latch should store the uncontrollability state
-     
-     uncontrFlop <- namedFlop "uncont" (Just False)
+     --uncontrFlop <- namedFlop "uncont" (Just False)
     
      -- input processing
      evRefs <- sequence [ input | x <- allEvents s]
@@ -144,20 +143,20 @@ processSystem s =
                      , varMap = vs
                      , eventMap   = evm
                      , globalError = ff
-                     , uncontr = (fst uncontrFlop)
+                     , uncontr = ff--(fst uncontrFlop)
                      }
      
      -- process each automaton
      state1 <- foldM processAutomaton state (automata s)
 
-     -- set updated uncontrollability flop
-     _ <- (snd uncontrFlop) (uncontr state1)
-     --_ <- (snd uncontrFlop) (tt)
+     -- set updated uncontrollability flop -- uncontr flop UNUSED
+     --_ <- (snd uncontrFlop) (uncontr state1)
 
      -- set the updated location values
      let newLocs = map (latestVal . snd) (locMap state1)
      sequence_ $ zipWith ($)
        (map snd locFlops) newLocs
+
 
      -- set the updated variable values
      let newVars = map (latestVal . snd) (varMap state1)
@@ -208,7 +207,7 @@ processAutomaton state a =
   fireds <- sequence $ zipWith and2 (map getEventRef trans) enableds
   
   let transAndFireds = zip trans fireds
-    
+  
   -- update locations
   cloc' <- foldM locationUpdate cloc transAndFireds
   let auts' = replaceAt (an, cloc') auts
@@ -222,7 +221,12 @@ processAutomaton state a =
       
   -- find errors stemming from a blocking automaton
   autError <- isBlocked evm a enableds
-  globalError' <- or2 autError (globalError state)
+  
+  -- find errors stemming from an incorrectly set up automaton
+  noLocError <- isOH $ map snd (origVal cloc)
+  
+  
+  globalError' <- orl [autError, (neg noLocError), (globalError state)]
   
   return state { locMap = auts'
                , varMap = vm'

@@ -29,17 +29,17 @@ autSynch = (foldr synchronise emptySynch [testAutA])
 
 testAutA :: Automaton
 testAutA = Aut { autName = "Aut1"
-               , locations = S.fromList [locA, locB]--, locC, locD]
+               , locations = S.fromList [locA, locB, locC, locD]
                , transitions = ts
                , marked = []
                , initialLocation = locA
                } 
  where
   ts = [ right1
-       , loop1 ]{--
+       , loop1
        , right2
        , right3
-       ]-}
+       ]
   right1 = Trans { start = locA
                  , event = "a"
                  , guards = []
@@ -51,15 +51,15 @@ testAutA = Aut { autName = "Aut1"
                 , event = "b"
                 , guards = []
                 , updates = []
-                , end = locA
-                , uncontrollable = True
-                }                
+                , end = locD
+                , uncontrollable = False
+                }
   right2 = Trans { start = locB
                  , event = "b"
                  , guards = []
                  , updates = []
                  , end = locC
-                 , uncontrollable = False
+                 , uncontrollable = True
                 }
   right3 = Trans { start = locC
                  , event = "c"
@@ -92,13 +92,13 @@ test_prop =
      let err = anyError sc
      --err <- or2 (anyError sc) (neg (anyUncontr sc))
      
-     let bad = (atLoc sc "Aut1" "B")--anyUncontr sc
+     let bad = (atLoc sc "Aut1" "D")--anyUncontr sc
      
 
      -- props
      return $ props
        { always = [neg err]
-       , nevers  = [bad]
+       , nevers  = [neg $ anyUncontr sc, bad] {-- FOR NOW: FIRST 'never' MUST ALWAYS BE "ALL TRANSITIONS CONTROLLABLE" (i.e. the negation of "any transition uncontrollable". --}
        , finites = []
        }
  where
