@@ -1,0 +1,17 @@
+Step-by-step todo alltså, annars kommer jag tappa bort vad jag försöker göra.
+
+1. När jag ska bevisa bort predecessor states till bad state, blockera de kontrollerbara och gör som vanligt med de okontrollerbara.
+
+[ 
+2. Plan b) Step.prove tar en bad state och ger mig en ny. Jag vill splitta en pred-clause-kombo till pred_c och pred_u, sådana att pred_c v pred_u == pred och c/u syftar på controllability hos övergångar till clause. Jag behöver då kunna göra detta även när jag har en pred med pred.next=null; då behöver jag plocka fram safety-property p och räkna den som next (eller, räkna ~p som next-bad-state).
+Gör plan b) om a) inte funkar.
+]
+
+2. I step.prove, och prop.prove, vill jag dela upp och anropa resp. metod två gånger: ena gången controllable, andra gången inte.
+
+
+3. prop.prove
+Samma sak som 3.a fast med prop.prove.
+
+
+4. Få prop.prove att lyssna på controllability öht.

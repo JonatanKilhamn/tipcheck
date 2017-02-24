@@ -1,0 +1,82 @@
+2016-07-06:
+
+Today I learned about the -> operator.
+
+Example:
+assert(sc->cycle <= safe_depth+1)
+The term "sc->cycle" here has the value of the "cycle" field (or whatever it's called) of sc -- or rather, of the structure (object?) that sc is a pointer to.
+In the particular situation, we have input "SharedRef<ScheduledClause> sc".
+SharedRef<T> contains a field
+    T* ptr
+and some operator overloading that, in this example, turns
+    sc->cycle
+into
+    ptr->cycle
+which is
+    *ptr.cycle
+
+
+
+I also learned about passing arguments by value, reference and address.
+
+I RelativeInduction.proveRec(...):
+pred är spännande, för den kom i input som
+    SharedRef<ScheduledClause>& pred
+vilket jag tolkar som att det är en ScheduledClause-pointer (som tidigare SharedRef) men som tas in "by reference". Skillnaden är att om jag ändrar sc (pekaren), dvs typ
+    sc = pred
+så kommer den som kallade proveRec inte att märka någon skillnad när de gör &sc; deras sc är en kopia som fortfarande pekar på sc. Dock kan jag ändra i värdet för sc, typ
+    *sc = *pred
+och det kommer märkas en nivå upp.
+Skillnaden mellan input "sc" och "&pred" är då att jag kan ersätta pred helt och hållet; byta pekaren till pred mot en pekare till något helt annat, och den förändringen kommer följa med hela vägen upp. Dvs om jag vill ändra något element av pred eller sc kan jag göra det enkelt:
+    sc->cycle = 1
+    pred->cycle = 1
+Men om jag vill byta ut sc helt måste jag kopiera hela skiten:
+    *sc = new_sc
+Medan pred kan bytas ut genom en enkel pekar-omflytt:
+    pred = &new_pred
+
+
+
+
+Mer insikter om pointer, value, reference, const:
+
+addClause(const Clause& c_)
+
+Den här tar in en Clause&, vilket borde innebära att den kan manipulera c_ som om det var det "riktiga" argumentet (enligt anroparen); dvs vi slipper avreferera pekare (vi kan jobba med c_ och inte *c_, som vi behövt göra om det var en Clause* vi fick).
+Samtidigt är det en const; vilket gör c_ read-only inuti addClause.
+I varianten där vi skickar en Clause* hade vi kunnat ändra i *c_.
+Om vi hade kört const Clause* (om det ens går?) hade vi fått en pekare vi inte kunnat ändra (?) som pekar på ett minne vi får ändra. 
+Varianten "const Clause c_" vet jag inte om det är vettigt alls – det hade velat skapa en kopia, och sedan inte fått ändra i den? Om det ens går, så är det onödigt: lägg tid på att skapa en kopia, som kastas bort i slutet, men begränsa dig ändå till att inte få ändra i den.
+Uppenbarligen är "const Clause& c_"det vi vill ha – inte value för att slippa kopiera; inte pointer för att slippa dereferera; och const för att vi inte ska modifiera den.
+
+
+
+2016-07-07:
+
+Idag lärde jag mig om minnesallokering. Jag visste att en kunde allokera minne (malloc i C; tydligen new i C++), och att en därmed behövde släppa det efteråt. Men jag insåg att ingen gjorde det i tip-koden hittills.
+
+Skillnaden var mellan dynamiskt och statiskt allokerat minne. Att bara skriva
+    int foo;
+gör att minne allokeras; men kompilatorn kan hålla koll på hur mycket som behövs eftersom det är entydigt ur koden. Dynamisk allokering skulle vara
+    int foo = new int();
+Då måste jag göra
+    delete foo;
+förr eller senare. Fördelen med detta är att jag kan skapa och förstöra mängder av objekt utan att alla behöver allokeras minne direkt vid programstart. Jag kan föreställa mig ett program t ex som skapar olika objekt och micklar med dem beroende på olika utfall i en switch-sats. Statisk allokering skulle då (tror jag?) behöva allokera minne i förväg åt alla möjliga varianter, medan dynamisk allokering kan se till att bara de objekt som ska användas får minne tilldelat.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

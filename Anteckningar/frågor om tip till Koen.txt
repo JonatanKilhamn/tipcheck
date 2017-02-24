@@ -1,0 +1,57 @@
+Nåja, jag har i alla fall tillgång till källkoden, och den har jag försökt förstå genom att läsa den. Jag har i första hand kikat i mappen supermini/tip/tip/induction. Där hittar jag bland annat metoden relativeInduction(tip, bmc_mode).
+
+Här deklarerar vi en
+    Trip trip(tip, opt_pdepth, false)
+Det är RelativeInduction.cc's "Temporal Relative Induction Prover", som verkar spara all relevant data under lösningsproceduren.
+Här finns också en BasicBmc. Stämmer det att det är bmc som är vår SAT-solver?
+
+Här finns en loop som kör
+    bmc->unrollCycle()
+och
+    bmc->decideCycle()
+Jag förstår inte riktigt vad dessa gör. Rullar upp kretsen på något sätt? Baserat på vad som händer senare verkar detta bara vara förberedelser/preprocessing av kretsen på något sätt; det verkar inte bero på precis vilka egenskaper vi ska bevisa om kretsen.
+
+Sedan kommer vad som verkar vara huvudnumret; loopen
+    while(!trip.decideCycle()) {...}
+
+Metoden trip.decideCycle verkar köra "en vända" av PDR. Den returnerar true (dvs loopen ovan avbryts) när alla egenskaper är bevisade eller motbevisade.
+
+För varje safety property p, så anropar vi proveProp, som returnerar en "lifted boolean".
+Den kan då ge:
+- l_True: p är bevisat säker för alla framtid
+- l_Undef: p är säker i den här cykeln, så vi kan gå vidare
+- l_False: vi har ett potentiellt motexempel; ett tillstånd som uppfyller ~p. Vi anropar proveRec.
+
+Det sista fallet är det intressanta för oss. Metoden proveRec ska bevisa, rekursivt, att en viss clause c (dvs negationen av en "bad cube", som det heter ibland i de artiklar jag läst) måste hålla i ett givet tidssteg. Om proveRec inte klarar av att visa vår clause, så vet vi att det finns en kedja av tillåtna tillstånd hela vägen från initialtillståndet till ~c i det givna tidssteget. (Det jag kallar "tidssteg" verkar vara det som heter "cycle" här.)
+
+
+
+Resultatet av att köra proveRec är att c antingen bevisas hålla i vårt nuvarande tidssteg, eller inte. Om c bevisas hålla, så kan processen att bevisa det ha medfört att vi bevisat en massa andra clauses i tidigare tidssteg.
+
+Det måste vara här någonstans jag vill ge mig in och ändra. Det jag vill ha en är procedur som, om den inte kan bevisa omedelbart att c måste hålla; ändrar i transition function så att c måste hålla.
+
+Först och främst: jag tror inte att detta kräver att vi ändrar i kretsen självt. Det vi vill kunna göra är att ta en given cube, som (tror jag) kan inkludera info om vilken händelse som behöver ske för att i nästa steg uppfylla ~c, och förbjuda den i alla tidssteg. Det borde inte vara svårare än att formulera en clause att spara i en särskild lista av "transition-begränsningar", och skicka in dessa som antaganden i alla SAT-queries därefter. Det borde göra att bmc (eller någon annan instans?) omedelbart kan se att vissa tillstånd-event-kombinationer inte kommer vara SAT, och bara pröva tillstånd som klarar sig igenom de nya vakterna.
+
+
+Det verkar alltså vara på nivån proveRec eller ännu lägre ner som jag vill ge mig in och peta. Närmare bestämt kan vi kika på
+    proveAndGeneralize(sc, minimized, pred)
+och
+    step.prove(...)
+som kommer "längre ner" i hierarkin.
+
+ProveAndGeneralise försöker bevisa att en viss clause håller i ett visst tidssteg, och ge nyttig info tillbaka. Jag tror att det är den jag vill byta ut. Istället för att som nu:
+1. försöka bevisa att clause sc måste hålla, eller
+2. om den inte håller, ta fram en clause "pred" att undersöka om den håller i föregående steg.
+I punkt 2 vill jag skilja på en pred som kan nå ~sc via en kontrollerbar övergång, och en som kan göra det via en okontrollerbar övergång. De förra vill jag omedelbart styra bort (supervise), och de senare vill jag behandla som vanligt.
+
+Jag tror att de förändringar jag vill göra görs inuti proveAndGeneralise, men att jag inte behöver gräva djupare ner än att göra ett par anrop till step.prove med olika parametrar. Men jag vet inte riktigt hur jag ska bära mig åt för att säga "jag vill bara ha resultat där uncontrollable-biten är 1"; jag vill inte lägga till det som ett globalt antagande eftersom jag vill alternera mellan att vilja ha den till 1 och ha den till 0. Så jag kanske behöver en ny metod som ersätter step.prove också – för jag vet inte om step.prove kan ta in den sortens tillfälliga constraints.
+
+För att hålla ordning på vad av output som är min uncontrollable-bit kanske jag måste ändra mycket "högre upp" också?
+
+
+
+3.
+
+Efter att det har blivit sorted out, så återstår en helt annan fråga, och det är hur jag får ut min output på ett vettigt sätt. Om det jag beskrivit ovan funkar som tänkt, så kommer jag sitta där med en lista på clauses som motsvarar nya vakter; kombinationer av tillstånd och händelser som inte får uppfyllas samtidigt. De är uttryckta i termer av input, output (controllable-biten) och latches.
+
+Det är ingen mening att begära av tip att uppdatera kretsen till att representera det kontrollerade systemet – jag har ingen nytta av Aiger-filen efter detta ändå. Nej, det jag behöver här är snarare att skicka in metadata till tip, utöver Aiger-filen – till exempel namn på tillståndsvariablerna, i ordning – och som output ge beskrivningar av vilket tillstånd som blev förbjudet. Beroende på vad vi har för input-standard i allra första början – det som haskell-modulen någon gång i framtiden ska kunna läsa – så behöver jag att antingen tip självt ger output som matchar det formatet, eller att jag kan mata tips output tillbaka in i haskell, och jobba i mina egna haskell-datatyper för synkroniserade automater.

@@ -1,0 +1,33 @@
+1.
+Fel:
+
+out-of-line definition of 'memUsedPeak' does not match any declaration in namespace 'Minisat'
+
+Åtgärd:
+
+Gå till minisat/minisat/utils/System.cc
+
+Ändra alla 
+    double Minisat::memUsedPeak() { ...
+till
+    double Minisat::memUsedPeak(bool strictlyPeak) { ...
+
+2.
+Fel:
+
+friend declaration specifying a default argument must be a definition
+
+Åtgärd:
+
+https://github.com/niklasso/minisat/pull/17/commits/53fb94ff9f06acca31e540eaa2157adab53a82b4
+
+3.
+Fel:
+
+[ 97%] Linking CXX executable tip
+ld: library not found for -lcrt0.o
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+
+Åtgärd:
+
+I ccmake-steget, sätt STATIC_BINARIES till OFF.

@@ -1,0 +1,18 @@
+Frågor till Koen:
+
+
+1. Vad borde jag använda för verktyg?
+- Go to declaration
+- Debugging
+
+Svar: XCode borde kunna funka, försök där.
+Uppdatering: det gick dåligt, men jag har slutligen fått igång NetBeans IDE ordentligt!
+
+
+2. Har du koll på Sig, Lit, Gate osv... Eller mer relevant, på solver, unroll, assumes? Några exempelfall:
+- Jag vill (mot)bevisa ett step, dvs hitta assignment från ~c till c, med extra antagandet att en viss flop är sann/falsk i output.
+- Jag vill (mot)bevisa min prop, dvs hitta assignment (i flera steg?) som slutar i ~p, under antagandet att en viss flop är san/falsk (i varje steg).
+
+Hur förhåller sig detta till ett solver-objekt, clauses, lits, gates, flops?
+
+

@@ -1,0 +1,149 @@
+    bool StepInstance::prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next)
+    {
+        DEB(printf("[StepInstance::prove] next = "));
+        DEB( (next != NULL) ? printClause(tip, *next) : (void)printf("<null>") );
+        DEB(printf("\n"));
+
+        assert(next == NULL || &c == (Clause*)&*next);
+        assert(c.cycle > 0);
+        double   time_before = cpuTime();
+        vec<Lit> assumes;
+        vec<Lit> actives;
+
+        // Assume proved clauses:
+        if (c.cycle != cycle_Undef)
+            for (int i = c.cycle-1; i < activate.size(); i++)
+                if (activate[i] != lit_Undef){
+                    assumes.push(activate[i]);
+                    actives.push(activate[i]);
+                }
+
+        vec<Sig> clause;
+        for (unsigned i = 0; i < c.size(); i++)
+            clause.push(c[i]);
+        //sort(clause, SigActLt(flop_act));
+        sort(clause, SigActGt(flop_act));
+
+        // Assume negation of clause 'c' (outgoing):
+        for (int i = 0; i < clause.size(); i++){
+            Sig x = tip.flps.next(gate(clause[i])) ^ sign(clause[i]);
+            Lit l = cl->clausify(uc.unroll(x, 0));
+            assumes.push(~l);
+        }
+        // Assume constraints:
+        assumes.push(act_cnstrs);
+
+        // Try to satisfy clause 'c' (incoming):
+        vec<Lit> cls;
+        for (unsigned i = 0; i < c.size(); i++){
+            Sig x = uc.unroll(c[i], 0);
+            Lit l = cl->clausify(x);
+            solver->setPolarity(var(l), lbool(!sign(l)));
+            cls.push(l);
+        }
+
+        if (next == NULL) solver->extend_model = false;
+        bool sat = solver->solve(assumes);
+
+        // Undo polarity preference:
+        for (int i = 0; i < cls.size(); i++)
+            solver->setPolarity(var(cls[i]), l_Undef);
+
+        if (sat){
+            // Check if incoming clause was satisfied:
+            bool clause_sat = false;
+            for (int i = 0; i < cls.size() && !clause_sat; i++)
+                if (solver->modelValue(cls[i]) == l_True)
+                    clause_sat = true;
+
+            if (!clause_sat){
+                // Look for a new model where the clause is guaranteed to be true:
+                Lit trigg = mkLit(solver->newVar());
+                cls.push(~trigg);
+                solver->addClause(cls);
+                assumes.push(trigg);
+                sat = solver->solve(assumes);
+                solver->releaseVar(~trigg);
+                // printf("[StepInstance::prove] needed to add induction hypothesis => sat=%d\n", sat);
+            }else{
+                // printf("[StepInstance::prove] did NOT need to add induction hypothesis.\n");
+            }
+        }
+        solver->extend_model = true;
+
+        bool result;
+        if (sat){
+            // Found a counter-example:
+            if (next != NULL){
+                flops.clear();
+#if 1
+                for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit)
+                    if (uc.lookup(*flit, 0) != sig_Undef)
+                        flops.push(mkSig(*flit));
+
+                //sort(flops, SigActLt(flop_act));
+                sort(flops, SigActGt(flop_act));
+                for (int i = 0; i < flops.size(); i++)
+                    flops[i] = uc.lookup(flops[i], 0);
+#else
+                uc.extractUsedFlops(0, flops);
+#endif
+                subModel(flops,   *cl, flops_set);
+                subModel(inputs,  *cl, inputs_set);
+
+                for (unsigned i = 0; i < c.size(); i++){
+                    Sig x = tip.flps.next(gate(c[i])) ^ sign(c[i]);
+                    outputs.push(uc.lookup(x, 0));
+                }
+                
+                subModel(outputs, *cl, outputs_set);
+                outputs.shrink(c.size());
+
+                shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, tip.verbosity >= 4);
+
+                vec<vec<lbool> > frames;
+                vec<Sig>         clause;
+                traceInputs(tip, inputs_set, uc, 0, frames);
+                getClause(tip, flops_set, uc, 0, clause);
+
+                SharedRef<ScheduledClause> pred(new ScheduledClause(clause, c.cycle-1, frames[0], next));
+                DEB(printf("[StepInstance::prove] pred = "));
+                DEB(printClause(tip, *pred));
+                DEB(printf("\n"));
+                no = pred;
+            }
+
+            result = false;
+        }else{
+            // Proved the clause:
+            vec<Sig> subset;
+            for (unsigned i = 0; i < c.size(); i++){
+                Sig x = tip.flps.next(gate(c[i])) ^ sign(c[i]);
+                Lit l = cl->lookup(uc.lookup(x, 0));
+                if (solver->conflict.has(l))
+                    subset.push(c[i]);
+            }
+            // What level was sufficient?
+            unsigned k = cycle_Undef;
+            if (c.cycle != cycle_Undef)
+                for (int i = c.cycle-1; i < activate.size(); i++)
+                    if (solver->conflict.has(~activate[i])){
+                        k = i+1;
+                        break;
+                    }
+
+            assert(solver->okay());
+
+            // TODO: is this ok? When it doesn't hold it means that the clause didn't hold in the
+            // previous cycle, and assuming the induction-hyptothesis was enough to derive the
+            // contradiction. This is suprising but may be ok in some situations.
+            // assert(subset.size() > 0);
+
+            yes = Clause(subset, k);
+            //printf("[StepInstance::prove] &yes = %p\n", &yes);
+            result = true;
+        }
+        cpu_time += cpuTime() - time_before;
+
+        return result;
+    }

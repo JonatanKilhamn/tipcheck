@@ -1,0 +1,596 @@
+För att göra syntes behöver vi:
+
+1. Ett sätt att spara föreslagna nya vakter, "guard strengthenings"; se till att de används resten av processen, och extrahera dem efteråt.
+
+2. Ett sätt att separera controllable och uncontrollable transitions; vi vill kunna specificera att vi är intresserade av t ex uncontrollable predecessors.
+
+
+
+
+Angående punkt 1.
+
+Vi pratade mycket om att "oj, vi modifierar T under körning, hur funkar det". Men jag tror inte det behöver vara så komplicerat. En ny vakt är bara en cube på formen:
+    (event) ^ (location) ^ g(vars)
+som, om den är uppfylld, gör att vi inte kan följa just den övergången.
+
+Om vi gör det enkelt för oss, så kräver vi determinism; dvs vi har aldrig en kombination av location, tillståndsvariabler och händelse som möjliggör mer än en övergång. Om detta håller, så vet vi att den nya vakten specificerar en situation som ofelbart leder till error. Är vi på den platsen, och har variabelvärden som uppfyllde de ursprungliga vakterna, så fanns det max en övergång som kunde göras för den givna händelsen. När denna nu är blockerad, så blir resultatet error.
+
+Detta kräver dock att vi pratar om just händelser och övergångar. Är en "pred" alltid exakt en location, med uppgifter om variabler som möjliggör exakt en övergång? Eller kan de, efter generalisering, ibland vara "plats a1 med x=0 och event e1 ELLER plats b2 med x=1 och event e2"?
+De kanske kan det, men det borde ändå hanteras av att generaliseringen sköts korrekt. Om det faktiskt gäller att alla tillstånd i C kan nå ett bad state, så ska alla tillstånd i C förbjudas, även om de råkar vara uppdelade på olika håll.
+
+Kan vi
+(a) Spara dessa förstärkningar, och
+(b) Lägga till dem i assumptions?
+Eller snarare, skulle det räcka?
+Frågor på det:
+- Gör vi någonsin SAT-checks på mer än ett steg i taget? Är det möjligt att formulera en ny vakt i ett enkelt format, och vara säker på att den tillämpas ordentligt?
+- Går det att "gå tillbaka" och tillämpa den nya vakten på tidigare resultat? Intuitivt borde svaret vara nej; den nya vakten gör bara att överapproximationer av reachability sets är än mer överskattande.
+
+
+Utveckling: en ny vakt är en cube, sådan att om den är uppfylld ska vi inte göra övergången. Till våra bevis vill vi ha en clause som ett antagande: "utgå från att detta är sant; gäller då P"? Negationen av vakten blir en clause av negativa literaler:
+    INTE location a1
+        eller
+    x != 2
+        eller
+    y != 3
+        eller
+    INTE event e1
+motsvarar kuben "a1 & x=2 & y=3 & e1"
+
+Idén är då att med detta antagande, så utesluter vi vissa kombinationer av tillstånd och events. Om vi lyckats med uteslutningen, så är de enda tillstånd som är kvar (för eventet ifråga) de som ändå ger error, för att alla övergångar är uteslutna. Dvs vi ger oss inte in i kretsen och får den övergången att ge error; vi co-optar input och kollar om det skulle gett oss just den övergången; skulle den gjort det så tillåter vi det inte. Övriga input får gå genom kretsen som vanligt.
+
+
+
+
+Angående punkt 2:
+
+Jag förstår varför Koen föreslog att vi skulle ha både en input och en output som är en controllable-flagga. 
+
+
+
+
+
+
+Efter mötet 2016-09-01:
+
+Koen säger: ändra i koden! Experimentera dig fram!
+
+
+Jag har fixat så att latch nr 0 alltid har uncontrollability-biten. Den borde finnas i pred->lits[0] – men lits är privat. Hur kommer jag åt det?
+
+
+
+Anteckningar 2016-09-02:
+
+Det visade sig vara svårt att plocka ut ett ställe där själva bevisandet av counterexamples sker – för tip är så optimerat att de gör någon sorts preprocessing (unrolling?) som motbevisar min safetyprop innan PDR liksom har börjat på riktigt.
+
+I tip/Main.cc, metoden main, gör vi temporalDecompositionSmart, som tydligen kan hitta ett motbevis mot min safetyprop i phils2.
+
+I RelativeInduction.cc, metoden relativeInduction, gör den bmc->decideCycle upp till ett maxdjup av 4 (som default) och tar på så sätt hand om alla egenskaper som går att motbevisa på max 4 steg. Men även egenskaper som hamnar i badstate på mindre än 4 steg vill jag kontrollera – men här används inte proveRec, så ändringar jag gör där kommer inte slå igen.
+- Ska jag ändra i bmc->decideCycle också, separat?
+- Ska jag ta bort denna prepocessing, och starta PDR direkt från djup 0?
+(Samma fråga om temporalDecomposition ovan.)
+
+Om jag tar bort decideCycle-grejerna i relativeInduction, och använder DEB (finns definierat i TripTypes.h, högst upp), så får jag segfault! Det är alltså någonting som ... behöver att bmc har rullats upp lite grann innan? ... men som bara tar sig uttryck inuti debug-meddelanden? Mycket mystiskt, och störande.
+
+
+Anteckningar 2016-09-05:
+
+Det handlar om raderna
+  bmc->unrollCycle();
+  bmc->decideCycle();
+Jag får segFault på phils2 om jag inte låter dessa två rader exekvera minst 2 gånger. Segfault dyker upp i Stepinstance::prove, på kommandot
+  printClause(tip, *next)
+som alltså inte fungerar om vi inte gjort unroll+decide två gånger. Jag vet inte exakt vad som händer däri som gör detta.
+
+Två unrollings är också tillräckligt för att motbevisa min safetyprop (i det exempel jag hackade ihop). Hör det ihop?
+
+
+Det verkar vara c.size() som är problemet inuti printClause. c är en Clause. Vad finns i c.size()?
+
+Problemet visade sig vara: ett skrivfel i DEB-output. Det stod (&*next != NULL) men borde vara (next != NULL). Med det ändrat, så går det att ta bort all pre-processing och köra igång PDR direkt.
+
+
+
+
+Angående Gates och flops:
+
+tip.flps
+tip är ett object av typen TipCirc (tip/TipCirc.*), som är en SeqCirc (mcl/SeqCirc.h). SeqCirc har ett fält flps, av typen Flops (mcl/Flops.*). Flops har en vector<Gate> med portar, och funktioner next() och init() som kan ge next- och init-signalen för varje port (dvs flps.next(flps[0]) ger next, som är en Sig).
+
+Vad är Sig för något? Jag tror det motsvarar "en tråd i kretsen". Eftersom det finns sparat i ett tip-objekt så måste det ju vara allmänt och tidlöst för kretsen; det ger ingen info om en given körning ger output 1 eller 0 på en viss bit.
+
+Fråga till imorgon: var ska jag leta för att få ut info om output hos en specifik flop?
+
+
+Svar: i TripProofInstances, getClause() genereras en clause. Där finns info om hela den upprullade kretsen; vilka portar som motsvarar flops, och vi kollar var och en av dem för att se om den är definierad i den assignment som på något sätt ligger och flyter efter senaste anropet till solver->solve().
+
+
+
+2016-09-06:
+
+Jag uppdaterade printClause så att den för ScheduledClauses även skriver ut inputs. Kom ihåg: en "lifted boolean" använder konstanterna:
+  0 för True
+  1 för False
+  2 för Undef
+
+Så nu kan jag t ex se
+1,  1,  0,  1,  1,  1,  1,  1
+i output, och veta att det motsvarar kommandot "eat1" (se Philosophers.hs).
+
+
+Nästa steg: förstå vad SAT-lösaren gör i bmc->decideCycle-stegen. Debuggern skriver ut clauses som { ~f0, ~f2 }@0. Hur kommer den fram till ~f0 och ~f2? Hur går den vidare därifrån?
+
+
+
+Nästa projekt: förstå vad tusan som händer i PropInstance::prove, i TripProofInstances.cc. Är det här vi skapar korgarna (frames)? På något sätt genereras ovanstående mystiska clause i alla fall.
+
+
+2016-09-09:
+
+Insikter:
+Under någon sorts preprocessing plockas en av mina flops bort. Resten av tiden finns det bara 8 flops; jag antar att det är uncontrollable-flopen som försvinner. Det borde jag göra något åt; jag måste kunna inspektera detta!
+
+Alternativ: vissa events är alltid uncontrollable. Det gör att vissa input alltid är det; och jag kan enkelt se huruvida en viss assignment är controllable genom att inspektera input (det kan jag ju typ redan, i mitt exempel).
+
+
+Jag har fortfarande svårt att följa med exakt steg för steg, men jag kan se att PDR verkar fungera ungefär som jag tycker: när den väl går över från cycle 0 till cycle 1 har den bevisat bland annat ~f0 och ~f2 (obs vi börjar räkna flops från efter uncontr.), dvs att vi inte befinner oss i eat0 eller eat1. Det stämmer ju – vi kan inte komma dit på 0 steg!
+
+När hamnar jag i bmc->decideCycle och när enbart i Trip::decideCycle() (filen RelativeInduction.cc)? Hur mycket av arbetet gör proveProp?
+
+
+
+Aha! Trots mycket letande på andra ställen, så verkar det som att jag faktiskt har precis rätt bad cube och bad pred på "kandidatstället" i proveRec. Mickla där! Uppgift till imorgon/måndag: block(pred) istället för enqueue(pred)!
+
+
+2016-09-11
+
+Hurra! Nu kan jag blockera problematiska predecessors.
+Hur jag gör:
+
+1. RelativeInduction.cc -> proveRec, else-satsen ("candidate place"): kalla blockClause(pred) (ny metod)
+
+2. RelativeInduction.cc -> blockClause (ny metod):
+- Sätt (*sc).cycle = cycle_Undef (annars hjälper det inte att utesluta det i F_i, för den kommer hittas F_(i+1) direkt efteråt!
+- Gör addClause(*sc)
+Så enkelt var det! Nu "låtsas" jag att jag har bevisat att pred-clausen var onåbar.
+
+Nästa steg: output! Spara de blockerade satserna någonstans, och skriv ut dem i slutet.
+
+
+
+2016-09-12
+
+Två uppgifter:
+1. Output!
+2. Vad händer med controllable-flopen?
+
+Output: proof-of-concept löst!
+- RelativeInduction.cc -> Trip::printFinalStats() skriver nu ut innehållet i blockedClauses.
+- RelativeInduction.cc -> blockClause pushar clauses på blockedClauses (en vec<SharedReference<ScheduledClause>>)
+
+
+
+
+2016-09-14
+
+Jag får rätt konstiga clauses. Varför hittar propInstance::prove en trace som går från {eating0,eating1} via pd0, pd1, tl0, tr0, eat0 för att komma till problematisk state eat0? So weird.
+
+Det verkar som att sat-lösaren hittar en trace som börjar mycket "högre" än nuvarande cycle. Dvs, hittar en trace som går upp till bad-state i cycle 7, och rapporterar sedan en "pred" som ligger i cycle 2 och kan nå denna bad state.
+
+Jag hittade opt_pdepth i RelativeInduction.cc. Den var satt till 4. Det gjorde att prop.prove alltid försökte leta efter traces som var säkra fram till korg 3 men osäkra i korg 4. Det ledde till att väldigt konstiga clauses behövde blockas. Jag ändrade opt_pdepth till 0, och det blev genast mer naturligt!
+
+
+Nästa steg: Trip::splitClause (i RelativeInduction.cc). Den ska splitta vår clause i en controllable och en uncontrollable del.
+
+
+Uppgift till imorgon: försök bygga splitClause. Behöver jag göra ett nytt prove-anrop? Från det jag har (en state som kan leda till bad) så behöver jag lista ut om det bad den kan leda till har uncont = true, false eller okänd, dvs jag vill göra ett anrop:
+    sc ^ ~p'
+(vilket jag vet är SAT) och inspektera uncontrollable-flopen.
+
+
+2016-09-16
+
+I StepInstance::isControllable (i TripProofInstances.cc) vill jag bygga in anropet sc ^ ~p' (p är controllability). För att göra detta behöver jag skapa en Lit l som motsvarar denna flop, så att jag kan göra assumes.push(l) (eller ~l, beroende på) på motsvarande ställe där step.prove antar ~c (outgoing). 
+
+(Uppdatering: här råkade jag alltså ändra plan från att kolla "~p' där p är safety" till "där p är controllability"...)
+
+2016-09-19
+
+Jag har lyckats!
+  Gate firstFlopGate = tip.getFirstFlop()
+(nu implementerad i SeqCirc.h) ger en gate, som pekar ut var i kretsen flop[0] finns. 
+  Sig x = tip.flps.next(firstFlopGate)
+ger sedan den Sig som motsvarar denna flops next-value,
+  uc.unroll(x, 0)
+tror jag ger den Sig som motsvarar x fast i sista(?) upprullningen av kretsen. Slutligen ger
+  Lit l = cl->clausify(uc.unroll(x, 0));
+den literal som motsvarar denna Sig – dvs om allt gått rätt till, den literal som kodar "nästa värde för denna flop, efter sista cykeln, är 1". Vi lägger ~l i assumes, dvs vi antar att uncontrollability är 0 – dvs att vi följde en kontrollerbar övergång.
+
+
+
+
+
+2016-10-07
+
+Step-by-step todo alltså, annars kommer jag tappa bort vad jag försöker göra.
+
+1. När jag ska bevisa bort predecessor states till bad state, blockera de kontrollerbara och gör som vanligt med de okontrollerbara.
+
+2. Step.prove tar en bad state och ger mig en ny. Här vill jag antingen
+  a) dela upp och anropa step.prove två gånger: ena gången controllable, andra gången inte
+  b) splitta en pred-clause-kombo till pred_c och pred_u, sådana att pred_c v pred_u == pred och c/u syftar på controllability hos övergångar till clause.
+
+3. Behöver också lösa problemet att step.prove får resultatet från prop.prove, som jag inte tror är de dåliga tillstånden i sig själva.
+
+4: kolla upp det. Vad får jag ut ur prop.prove?
+Jag får:
+{ inputs:  1,  0,  1,  1,  1,  1,  1,  1
+ clauses:~f4, ~f6, ~f7, f8 }@0
+Det motsvarar:
+ bad state: idle1, hl1, hr0, ~hr1
+ input: tr1
+ 
+Safety är "ingen gaffel hålls av två filosofer", så hl1^hr0 borde vara bad state?
+ 
+5: gräv i prop.prove. Jag behöver förstå det här.
+För det första: svaret ovan är det "första" som prop.prove hittar. Den har inte stegat sig igenom predecessors för att hitta detta.
+
+Är alla bad states den hittar sådana som redan är bad, dvs inte behöver ta ett steg för att komma dit? Är då input irrelevant?
+
+I nästa vända hittar den
+{ inputs:  1,  0,  1,  1,  1,  1,  1,  1
+ clauses:~f4, ~f5, f8 }@0
+dvs idle1, hl0, ~hr1, med input tr1. Här är det ju solklart inputen som skapar problemet, i nästa steg!
+Detta är efter att ha bevisat att clause ~f6 håller, dvs att tillståndet hl1 inte går att nå. Så, i första vändan hittade den bad state, i andra vändan var denna bad state onåbar så den hittade ett tillstånd som kunde nå badstate?
+
+Är det helt enkelt så att den i första vändan hittade ett som kunde nå bad state, och som bara råkade vara bad självt? Detta är min arbetshypotes.
+
+[Kan jag motbevisa den? Om jag orkar: skriv om philosophers så att det som gör att vi är i bad state omedelbart gör att det inte går att gå vidare. Nej, det orkar jag inte.]
+
+Insikter:
+i prop.prove, när den räknar fram pred:
+- clause är INTE en Clause, utan en vec<Sig>. Den har den information som ScheduledClause-konstruktorn behöver för att skapa en Clause som vi kan läsa.
+- Dessa Sigs matchar 1-till-1 mot flops, ser det ut som, men jag orkar inte lista ut hur jag får ut flop-numret.
+- frames är helt enkelt en lista med input i varje tidssteg som prop.prove jobbar med (just nu 1 steg, det som leder direkt till badstate).
+
+
+[här gick jag över till att föra en uppdaterad TODO i todo.txt, och detta får återgå till att vara stream-of-consciousness.]
+
+Hur är det i senare cykler, får jag djupare kedjor då? 
+
+Nej, även i cycle 1 får jag "final pred" direkt dvs vi behöver inte jobba oss bakåt i resultatet från solver för att få ut det som prop.prove ger som output. Bra.
+
+
+pop()
+
+
+Tillbaka till 4: Vad får jag ut ur prop.prove? Jag får en clause vars motsats kan leda till bad state med specificerad input.
+
+4.1: Kan jag redan här specificera att jag vill ha den kontrollerbar eller inte?
+
+5. Alternativ undersökning: kan jag i proveAndGeneralize (när vi anropar den i proveRec) läsa av om clausen sc är "top-level" eller inte?
+
+6. Hur hittar jag nästa clause i kedjan från en sharedref<scheduledclause>?
+
+Svar: .next. Det var inte så svårt. Vi testar.
+...
+Det blev null hela tiden. Prop.prove returnerar nu en pred vars next är null. Detta bör vara för att jag satt depth till 0, så den har aldrig räknat fram en clause som motsvarar att next-state är bad – den har bara löst ut SAT med förutsättningarna att från dessa flops, med dessa input, så blir utgående bad-signalen sann. Om vi frågar efter dem inuti prop.prove bör vi alltså i teorin kunna få ut next-flopparna, men orkar vi det?
+
+pop()
+
+Tillbaks till 5: kan jag i proveAndGeneralize (när vi anropar den i proveRec) läsa av om clausen sc är "top-level" eller inte?
+
+Ja, om sc.next == null!
+
+pop()
+
+Tillbaks till 4.1: Kan jag redan här specificera att jag vill ha den kontrollerbar eller inte?
+
+Jag vet att den är sista clausen innan bad-state. Så enligt 2. ovan:
+  a) jag kan bygga om prop.prove så att den ger mig "sista clausen innan bad" för de två olika fallen (contr/uncontr)
+  b) jag kan försöka splitta den. Jag kan identifiera, även i senare led, att "next" helt enkelt är bad, så om jag lyckas göra en step.prove som kan säga –
+    ta den här clausen –
+    och det här controllability-kravet – 
+    och det här kravet på next (antingen en viss clause, eller bad) – 
+    – och ge mig ett vittne som jag kan generalisera
+Denna nya clause är bredare än originalet, och lättare att bevisa, men garanterar i gengäld bara att det inte går att komma till next (alt. bad) via vägar som har just den controllability-biten. Dvs vi måste göra det två gånger, en för contr och en för uncontr.
+
+Låter krångligt. Lättare att bara köra prop.prove och step.prove två gånger var istället?
+
+
+Vi testar det. Vadfan.
+
+pop()
+
+Tillbaks till 4: Vad får jag ut ur prop.prove? Jag får en clause vars motsats kan leda till bad state med specificerad input. Check.
+
+pop()
+
+Tillbaks till 3: Behöver också lösa problemet att step.prove får resultatet från prop.prove, som jag inte tror är de dåliga tillstånden i sig själva.
+
+Det visade sig ju inte vara inte.
+
+pop() 
+
+
+Tillbaks till 2: Step.prove tar en bad state och ger mig en ny. Här vill jag antingen
+  a) dela upp och anropa step.prove två gånger: ena gången controllable, andra gången inte
+  b) splitta en pred-clause-kombo till pred_c och pred_u, sådana att pred_c v pred_u == pred och c/u syftar på controllability hos övergångar till clause.
+
+Vi kör på plan a), fast vi behöver göra samma sak för prop.prove. Inte kod-optimalt, men men.
+
+2. I step.prove, och prop.prove, vill jag dela upp och anropa resp. metod två gånger: ena gången controllable, andra gången inte.
+
+3. step.prove
+Jag har lagt in "controllable" som argument till step.prove. Om jag gör det rätt borde jag redan nu enbart hitta förvillkor som är controllable.
+
+Hur ligger det till med det egentligen?
+
+
+4. Hur funkar det här egentligen? Bevisar jag osunt nu, eller är philosophers bara helt igenom kontrollerbara/okontrollerbara? Kolla upp:
+- vad är defaultvärdet dvs letar jag efter bara c- eller bara uc-övergångar?
+- hur ser Philosopher ut just nu?
+- kan jag se effekter av detta i output?
+
+
+2016-10-14
+
+Insikt: jag har vänt på controllable/uncontrollable! Jag har en flop som heter "uncontrollable" i haskell-koden, och en parameter som heter controllable i StepInstance::prove, och de verkar gälla samma sak. Jag ska ändra i tip-koden.
+
+
+För att besvara 4:
+- Jag kontrollerar just nu bara uncontrollable=false, dvs kontrollerbara.
+- Philosophers just nu har bara kontrollerbara övergångar.
+- Effekten är att output ser ut som vanligt, men om jag flippar till uncontrollable=true hittar jag ingenting – dvs jag "bevisar" direkt att det inte går att nå unsafe state, för jag ignorerar alla övergångar. prop.prove bryr sig inte om controllability, så den ger mig alla övergångar; i nästa steg blir de onåbara, säger step.prove.
+
+pop()
+
+Tillbaks 3 step.prove
+Uppgiften nu: anropa step.prove två gånger varje gång, ena gången controllable och andra uncontrollable.
+
+
+Nu ändrade jag så att uncontrollability är en int, med tre godkända värden: 0 = false; 1 = true; 2 = undef. Undef innebär att step.prove söker längs alla övergångar.
+
+
+Jag tror att jag har löst det för step.prove nu, fast med mycket duplicering av kod. Programmet beter sig inte korrekt, troligtvis för att prop.prove inte bryr sig om controllability. Vi räknar alltså 3 som löst.
+
+pop()
+
+Tillbaks till 2. a) I step.prove, och prop.prove, vill jag dela upp och anropa resp. metod två gånger: ena gången controllable, andra gången inte.
+
+Jag har redan gjort ste.prove, så kvar är prop.prove.
+
+Jag verkar inte lyckas med detta:
+
+4. Få prop.prove att lyssna på controllability öht.
+
+
+5. Vad är skillnaden mellan det jag gör i prop.prove och step.prove?
+
+- prop.prove har en act_cycle. Det är en aktiveringsliteral för nuvarande cycle. Vad innebär det att den är tillagd i assumps? Jo, det borde innebära att vi räknar med tidigare bevisade clauses – sådana som lagts till med PropInstance::addClause tidigare.
+
+Vad gör jag ens i step.prove? Fungerar det? Jag vet att jag såg skillnad i output förut, varför inte nu?
+
+Kan jag återskapa det jag hade förut, där den öht brydde sig om uncontrollable i step.prove?
+
+
+
+
+2016-11-01:
+
+Jag blev av med en massa arbete pga ingen backup.
+
+Jag försöker återskapa det jag hade baserat på mina anteckningar. Jag håller på med steget från 2016-09-11. Det vill sig inte. När jag bara blockerar pred och inte köar varken pred eller sc så fastnar den i step.prove oändligt, och försöker bevisa... en tom clause? Hur kommer det sig? Det är en bra uppgift att lista ut det, tror jag. Vi ses på torsdag (2016-11-03).
+
+
+2016-11-03:
+Jag hoppade vidare lite och gjorde nästa steg, dvs bytte opt_pdepth från 4 till 0, och nu fungerar det! Nu avslutar den åtminstone körningen om jag antingen bara blockerar pred, eller också köar sc.
+
+Jag har nu följt mina tidigare anteckningar fram till 2016-09-14. Där lyckades jag komma åt flps[0], och det gör jag nu också, men jag skrev tydligen aldrig ner exakt vilket preproc-steg som var skyldigt till att ta bort oanvända flops för mig.
+
+Jag hittade det. Det var "cone-of-influence reduction", som styrs av en parameter coif. Jag satte den till false (i Main.cc) och nu får alla mina flops vara kvar.
+
+Nu har jag också återskapat resultatet från 2016-09-19, dvs att step.prove bara ser kontrollerbara resp. okontrollerbara övergångar:
+
+        // Assume uncontrollability (incoming)
+        Gate firstFlopGate = tip.getFirstFlop();
+        Sig x = tip.flps.next(firstFlopGate);
+        Lit l = cl->clausify(uc.unroll(x,0));
+        assumes.push(~l);
+
+i TripProofInstances.cc, StepInstance::prove(...).
+
+
+
+2016-11-10:
+
+Nu försöker jag peta in en uncontrollable-flagga igen, och jag inser att step.prove anropas på flera olika ställen inom proveAndGeneralize.
+
+Status: när jag i proveAndGeneralize kör step.prove med assumes.push(~l) så får jag output som beror på vilka övergångar som är controllable.
+
+OBS: korkad jävla miss, troligtvis samma som jag hade förut i koden jag schabblade bort: jag måste köra ":l Philosophers" efter att jag ändrat koden och innan jag kör "main", annars får tip samma program varje gång!
+
+
+
+2016-11-13:
+
+Nu har jag skrivit in uncontr-flaggan i prop.prove också. Den funkar... åt ena hållet?
+
+När alla övergångar är uncontrollable spelar det ingen roll vad jag sätter flaggan till – jag får "vanlig" output ändå (dvs prove-metoden hittar allting, antar jag).
+
+Nej, nu har jag fått samma fel som innan! Med vissa inställningar oändlig loop, med andra inställningar hittar den ingenting, och ingen logik verkar det finnas...
+
+Jag kan i alla fall backa till innan jag skrev in flaggan i prop.prove! Kan jag återskapa det här? Koden jag gjorde förut finns i git stash. Godnatt.
+
+
+2016-11-16:
+
+Jag tog tillbaka min stash och undersökte beteendet ordentligt, och det här är vad jag får:
+
+När alla övergångar är controllable är uncontrollable-gaten identiskt 0. Dvs det går att säga redan i översättningen till krets-format att den flopen alltid kommer vara 0. Så både prop.prove och step.prove agerar alltså "korrekt" i det att de antingen garanterat säger "omöjligt" eller kör precis som vanligt. Vi lägger ju bara till antingen True eller False som ett antagande.
+
+När alla övergångar är uncontrollable får jag en mycket mer komplicerad situation. Den nya flopen beror nu på transitions. I slutändan, om jag gjort rätt, borde det ju bli att anyUncontr är true om någon uncontrollable övergång faktiskt fyrats av... och antagandet om icke-error borde ju göra att vi redan skurit ner sökutrymmet till situationer där exakt en övergång fyras av. Så det borde alltid bli true, och borde egentligen inte spela någon roll huruvida vi tittar på ingående eller utgående övergångar heller. Jag menar, vi vill ju att det ska spela roll i framtiden, men i mitt exempel borde jag, om controllability-flopen räknas ut korrekt, få att den är True varje gång. Och då borde ju prove-metoderna ge rätt svar.
+
+
+En metod som troligtvis kommer ge mig lite insikt är att byta från Philosophers till ett simplare system, som ger en simplare krets. Orkar jag det? Ja, det gör jag nog.
+
+
+Jag har nu gjort en simplare krets. Den finns beskriven på papper som jag har med mig, samt implementerad i Haskell i TestAut.hs, systemet autSynch.
+
+Här beter sig tip (med ändringar) lite mer rimligt. Jag satt en lång stund och bara tog mig igenom den output en vanlig körning ger, det kändes mer överskådligt när systemet var så enkelt. Detta borde jag gjort för länge sedan.
+
+Inga stora insikter i varför jag får oändliga loopar i Phils dock.
+
+
+2016-11-16:
+
+short-circuit the prop.prove by just converting the property into a clause immediately?
+
+
+
+2017-01-11:
+
+Grävde runt lite, kom tillbaka till koden lite långsamt.
+Programmet gör inte det naturliga på testAut, utan blockerar lite skumma clauses (t ex ~f1, ~f3, ~f4, där f3 och f4 är två olika locations dvs de kan inte vara sanna samtidigt, så denna clause håller per automatik).
+Mer än så kom jag inte fram till.
+
+2017-01-30:
+
+Grävde runt i koden. Försökte skapa en scheduled-clause baserad enbart på en enda sig. Det gick sådär.
+
+2017-01-31:
+
+Jag försöker reverse engineer prop.prove.
+Jag förstår mig på dess output när jag skiter i controllability. Jag kan göra så att jag blockerar den pred jag får direkt från prop.prove (innan jag går till step.prove) i enbart vissa fall (t ex enbart när den är hittad med uncontrollable=0).
+Dock har jag fortfarande samma fel som tidigare: även med uncontrollable=0 så hittar den övergångar som ska vara uncontrollable.
+
+
+2017-02-16:
+
+First order of business: debugga controllability på Haskell-sidan.
+
+Det funkar fortfarande som det ska: enskilda input ger vettig controllability-info.
+
+Det är dags för en ännu enklare automat.
+
+
+[Potentiellt framtida problem upptäckt: proveRec kollar om cycle==0, och isf säger den att det är kört. Egentligen vill vi väl kunna blockera övergångar även om de råkar starta i initial state.]
+
+Samma som tidigare: med uncontr=1 så "missar" proveProp övergångar som har uncontrollable=False. MEN bara om hela automaten är uncontrollable=False överallt!
+
+Om jag ändrar från tip.flps.next(firstFlopGate) till tip.flps.init(firstFlopGate) så tittar den på ingående uncontrollability – vilket i första cykeln (har inte kommit längre än så än) enbart beror på om uncontr-floppen är en "flop (Just True)" eller "flop (Just False)".
+
+Tittar på utgående (dvs tip.flps.next...) så lägger den något annat i assumps – men verkar ändå inte funka som den ska.
+
+Jag fick det att "funka" i bemärkelsen att jag kunde styra precis vilka övergångar prop.prove skulle ta hänsyn till... genom att lägga till (anyUncontr sc) till definitionen av err. Dvs om det matas in som del av err, där det på något sätt hamnar i constraints, så lyssnar prop.prove. Vad är skillnaden? Jag gräver just nu i vilka Lits som finns i assumps; därefter vilka Sigs dessa lits motsvarar, och jag upptäckte just att tip.main.lchilc(Sig x) finns.
+
+2017-02-17:
+
+Vad läggs dit med addClause?
+
+
+När prop.prove antar uncontr=1, men kretsen bara har uncontr=0-övergångar, så funkar det som det ska: prop.prove hittar ingenting. När prop.prove antar uncontr=0, men det bara finns uncontr=1, så hittar den dem i alla fall.
+
+Jag testade att byta i TransitionSystemCircuit så att uncontrollable motsvarades av False istället för True. Då bytte det. Dvs: när jag ber prop.prove leta efter uncontrollable – dvs leta efter det som TSC faktiskt behöver mickla med för att komma fram till – så funkar det. Att leta efter "ingen sade åt mig att det var uncontrollable" funkar inte.
+
+
+Jag testade att skapa en andra flop, som motsvarade controllability (neg uncontr). Det hjälpte inte heller. Dvs när denna flop skulle variera baserat på faktisk controllability för övergången, så ignorerades den.
+
+Nästa försök: få solver att skriva ut hela trace, dvs skriva ut hela lösningen. Det den gör nu är ju i princip att hävda att det går att lösa "unsafe ^ ~error ^ ~uncontr" men lösningen den ger har input som skulle ge en uncontr-övergång.
+
+Idé: är det för att previous-state för locations (flops) är okänt? Dvs om jag har en viss input, men inte specificerar ursprungstillståndet, så är det förenligt med "~uncontr ^ ~error" även om det inte borde?
+
+
+2017-02-20
+
+
+En pusselbit verkar vara raden 
+                     , uncontr = (fst uncontrFlop)
+alternativt
+                     , uncontr = ff
+i TransitionSystemCircuit, rad 147 just nu. Den har för det mesta varit ff, vilket innebär att oavsett vad uncontrollable får för värde ena gången, så baseras den nästa gång enbart på de övergångar som sker då, inte på vad den hade för ingående värde. Därför har den hittills varit undef i pred – jag ber solvern anta att den ska vara ett visst värde utgående, och sedan rapporterar den vad det säger om de ingående flopparna. Om det ingående värdet körs över, så spelar det ju ingen roll.
+
+Kan jag få den att rapportera utgående värden? Dvs, rapportera både pred och dess uppföljare?
+
+Nu får jag prop.prove att skriva ut vad som borde vara värdet på uncontrollable-flopen efter övergången. Samma fel som vanligt: när kretsen (i Haskell) säger att en viss övergång borde ge uncontr=True, så hittar tip ändå just den övergången men hävdar att next-värdet är False.
+
+
+
+2017-02-21
+
+Jag tror att jag har fått utskrifter på next-värden enligt den lösta modellen nu.
+
+Konstigast hittills:
+
+Med uncontr=ff (se ovan), samt
+     uncontrFlop <- namedFlop "uncont" (Just False)
+Och ett system baserat på TestAut2 med right1 och loop1
+Med
+right1: Uncontrollable=True
+loop1: Uncontrollable=True
+Så hävdar den att Uncontrollable-floppen är False, både innan och efter övergången right1. Och det går ju inte.
+
+Men! Med
+right1: Uncontrollable=True
+loop1: Uncontrollable=False
+så visar den Uncontrollable.next=True! Dvs när jag lägger in en annan övergång som skulle ge False, så visar den (korrekt) att den valda övergången ger True... men då borde den inte kunna väljas, eftersom den borde anta False från början!
+
+
+
+Att testa om jag kör fast: skippa uncontrollable-flop, istället ha uncontrollable-output. Hacka in det i tip som en safety-egenskap, och istället för att loopa över alla så behandlas en av dem separat.
+
+Testa det imorgon. Skit i vad du gjorde idag, det leder ingenvart ändå.
+
+
+2017-02-22
+
+Jag bytte från flop till "output" (dvs safety-egenskap) OCH DET VERKAR FUNKA!
+
+TODO: se till att "en automat är på två ställen samtidigt i början av transition" ger error.
+DONE
+
+2017-02-23
+
+TODO: Philosophers fastnar i oändlig loop. Felet verkar vara när vi får en tom clause i proveAndGeneralise, i stadiet "Push clause forwards as much as possible".
+
+Men jag gräver, och hittar en djupare bugg. Med enbart uncontrollable=True-övergångar, så får jag felet från phils2_bug_2017-02-23.1.log. 
+
+Felet är att StepInstance::prove hävdar att den pushar uncontrollable=0, men den lyckas få SAT ändå. Suck...
+
+Jag testade att gå tillbaka till TestAut, och utöka den steg för steg.
+
+Generellt verkar mina problem ligga i att step.prove hittar (och blockerar) övergångar som inte borde vara controllable. Exempel: jag har downA, upA, downB, upB och loopA. Om alla är uncontr=True så säger tip (korrekt) att safety inte håller. Men om jag gör enbart loopA till uncontr=False, så får den för sig att blockera, och inte loopA-övergångar!
+
+Jag måste förstå StepInstance::prove. Mina kretsar beter sig som de ska, det är jag rätt säker på.
+
+2017-02-24
+
+Jag knäckte en viktig sak: när jag bevisar en clause i proveAndGeneralise i uncontr=0, så ska jag inte lägga den till bevisade satser med en gång. Det ska jag enbart göra när den därefter blivit bevisad i uncontr=1-fallet.
+
+
+Felet jag beskrev en bit upp kvarstår: om loopA är uncontr=False, så tycker step.prove att den kan blockera en downA-övergång.
+Detta fel kvarstår även om jag gör något så nonsens som byter plats på push(~l) och push(l) i stepinstance::prove; dvs säger att uncontr=0 betyder =1 och tvärtom. Detta kommer tydligen inte i spel i detta problem.
+
+Dock, i phils1, som verkar funka som den ska nu, funkar bara när l och ~l är på rätt plats. Så där kommer StepInstance::prove i spel mer, och fungerar som den ska.
+
+Potentiell orsak: uncSig.x=191 i både prop.prove och step.prove, men l.x (när l=uc->unroll(...)) skiljer. Vilken uncSig är det jag kollar – i vilken cykel? Sista steget?
+
+Aha! uc->unroll ger olika resultat i de två fallen för att PropInstance och StepInstance har varsin uc – det är en "upprullad" version av kretsen, dvs kretsen omgjord till SAT-problem (tror jag?). I vilket fall, jag såg att uc.unrollSafeProps fanns i PropInstance men inte i StepInstance. Detta för att StepInstance vanligtvis inte behöver bry sig om safety props. Men när jag ber uc clausifiera min uncSig så blir det nonsens om den inte har tagit med safety-props i sin upprullning! Eller, det riskerar att bli – det är godtyckligt om just den sig som uncSig pekar på finns representerad på rätt sätt i uc; om jag förstår saken rätt.
+
+Jag lade till uc.unrollSafeProps(0, props) i StepInstance.reset(...), och det verkade lösa hela problemet!
+
+Nu fungerar alltså TestAut, både med och utan konstiga "förvillande" övergångar, och phils2.
+
+Nya buggar till på måndag: i TestAut, med en loopA som går B1-(c)->B1, så blockeras 'c', vad jag tycker i onödan.
+
+
+
+
+
+
+
+
+
+
+

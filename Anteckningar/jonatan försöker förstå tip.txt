@@ -1,0 +1,272 @@
+
+
+
+
+
+
+RelativeInduction.cc
+
+Detta borde vara någon sorts "main"-procedur för PDR, tycker jag.
+
+
+relativeInduction(TipCirc& tip, RipBmcMode bmc_mode)
+
+Här deklarerar vi en
+    Trip trip(tip, opt_pdepth, false)
+Det är RelativeInduction.cc's "Temporal Relative Induction Prover", som har ALL THE DATA.
+Även en BasicBmc, som är vår SAT-solver, om jag förstått saken rätt.
+
+Sedan kör vi en for-loop antingen tills vi är klara eller tills vi gått över vårt maxdjup. I den kör vi bmc->unrollCycle() och bmc->decideCycle(). Jag vet inte exakt vad dessa gör - rullar upp kretsen men utan att egentligen bevisa något?
+
+Efter det - och någon sorts clear/reset i bmc? – så gör vi en loop med trip.decideCycle. Den slutar när decideCycle returnerar true, vilket den gör när allt är bevisat eller motbevisat.
+
+Därefter book-keeping, printing stats, etc.
+
+
+
+
+decideCycle()
+
+[Det här kanske är "main"? Den har inga argument, vilket är lite spännande.]
+Nej, det finns "högre nivåer" i den här filen. Och den jobbar med instansvariabeln tip, så den "har något att jobba med", inga problem.
+
+Den börjar med
+// Process safety properties:
+och letar i tip.safe_props. Vad finns där?
+tip är deklarerad som en TipCirc&.
+TipCirc finns i tip/TipCirc.h.
+Den representerar en krets. 
+
+För varje safety property p, så anropar vi proveProp.
+Den kan då ge:
+- l_True: p är bevisat säker för alla framtid
+- l_Undef: p är säker i den här cykeln, så vi kan gå vidare
+- l_False: p ser ut att vara bruten – vi anropar proveRec. Vår "bad state" blockeras (dvs det visas att den inte var på riktigt). Om det går vägen, så loopar vi runt och försöker oss på proveProp(p) igen. Om proveRec returnerar False, så är systemet osäkert; vi gör setFalsifiedSafe och break.
+
+Något liknande händer för alla liveness properties.
+
+Sedan kollar vi om vi bevisat allt vi kan för det här djupet. Jag är inte helt med på vad prop.depth(), goal_depth och safe_depth är, men slutresultatet kan ändå bli att vi ökar på dem – lägger till en ny korg (F_{k+1}).
+
+decideCycle verkar förutsätta att den "fullständiga processen" innebär att anropa den upprepade gånger. Den är ganska tydligt ett steg från nuvarande tillstånd till nästa.
+
+
+
+
+proveRec:
+
+// Prove scheduled clause "recursively". Returns true if the clause was proved, and false if it was falsified.
+Är det det vi pratar om med "blocking"? Dvs vi har en clause som, om den kan vara sann i F[k-1], ger oss problem; och vi vill se huruvida den kan det eller inte.
+Vi kikar:
+
+Vi jobbar med en SharedRef<ScheduledClause> sc.
+SharedRef är någon sorts pointer-wrapper, så vi kan t ex skriva sc->cycle för att få fältet cycle från den innehållna ScheduledClause (som i sin tur är någon sorts wrapper/alias för en vanlig Clause, som faktiskt har ett fält cycle [av typen Cycle, som är ett alias för uint32_t]).
+
+Vi har en oändlig loop! Den börjar med
+    sc = getMinClause(), dvs vi hämtar den clause som står först i kön att bli prövad.
+
+Sedan har vi en mystisk if-sats:
+    if (fwdSubsumed(&(const Clause&)*sc, sub_cycle)){
+Den har med subsumtion att göra, och jag tror att slutresultatet kan bli att sc i sin nuvarande form är ointressant att kolla. Den kan läggas tillbaka i kön fast med ett nytt cycle-värde - för att den redan garanterat var sann där den var, kanske? I vilket fall, continue.
+
+Om inget händer av subsumtion:
+
+Vi kallar proveAndGeneralize(sc, minimized, pred).
+"minimized" är här en tom (nydeklarerad) Clause, och jag antar att poängen är att proveAndGeneralize ändrar i den, så att det finns något i den när den kommer ut?
+
+Ja, så är det. Dastardly side effects! :P
+
+1. Om proveAndGeneralise lyckades, så har vi en version av c (dvs en ~b, om b är en "generaliserad bad state") som håller induktivt. Den ligger då i minimized.
+Vi gör då ett par saker. Först lite som vad jag kan se är bookkeeping (iters++, printa stats, justera så att några räknare stämmer).
+Sedan kollar vi om vi nått "bound", även om jag inte är säker på vad som är begränsat. Antalet clauses i kön? Det är vad som verkar resettas iaf.
+Sedan kör vi addClause(minimized). Beskrivning av den kommer nedan.
+
+Om addClause returnerar true (vilket jag inte riktigt förstår vad det innebär) så kör vi extractInvariant(). Den går vi igenom nedan (förr eller senare).
+Annars kollar vi en komplicerad vakt (som jag tror syftar till att avgöra om minimized "är komplett" på något sätt? Eller om det "finns mer att göra"? Det som händer om vakten är sann är nämligen att vi gör enqueueClause(sc) en gång till, fast med cycle satt till minimized.cycle+1. Hm.
+
+
+Nåja!
+
+2. Om proveAndGeneralise misslyckades, så betyder det att vi inte kan bevisa att ~b (dvs sc) håller. Vi har då en ny "bad state" s, en predecessor till b. Tekniskt sett har vi "pred", som jag då tror är en clause som vi vill ska hålla i k-1 – dvs pred = ~s.
+Om k redan var 0, så är det nu kört. Return false; systemet osäkert.
+
+Annars börjar vi med en assertion: att pred håller i startläget. Gör den inte det är det kört ändå? Iom att det är en assertion så tolkar jag det som att det alltid kommer stämma när vi kommer hit.
+
+Sedan lite book-keeping, och så det intressanta: 
+    enqueueClause(pred)
+    enqueueClause(sc)
+Dvs vi köar pred, som väntat, och sedan köar vi sc igen! Efter att ha testat pred, så testar vi sc en gång till. Dvs, om b har fler predecessors, så vill vi hitta dem när vi kommer tillbaka till sc senare.
+
+
+
+
+
+
+
+
+
+
+proveAndGeneralise:
+
+När denna anropades i proveRec så skickades
+    Clause minimized
+in som input 
+    Clause& yes
+Den är alltså by reference; jag kan ändra "yes" och resultatet "följer med ut".
+Vad som händer:
+1. Kolla om vi har cycle==0. Det är nämligen ett specialfall, där vi måste köra init.prove istället för step.prove. Om vi lyckas bevisa det, så vet vi att c är sant vid k==0.
+Om cycle!=0 så gör vi step.prove istället.
+I båda fallen: om vi inte lyckas bevisa det, så är c omöjlig. Då får vi ut en predecessor: något som behöver vara sant i ett tidigare steg för att c ska kunna vara sann här. (Jag kanske tappar bort en negation här...)
+Om vi lyckas bevisa, så får vi en förenklad (minimal?) clause yes_step som vi pushar så långt fram som möjligt.
+
+2. Kolla om yes_step "is already inductive". Vi kollar om cycle=cycle_Undef, vilket jag tolkar som att den är induktiv – dvs den kan bevisa sig själv i nästa tidssteg.
+
+Om yes_step inte är induktiv, så skapar vi en kopia av den, "inf", och sätter cycle=cycle_Undef. Vi anropar sedan step.prove(inf, yes_step) och check(init.prove(inf, yes_step, yes_init)).
+Detta förstår jag som att det resulterar i att yes_init blir den induktiva version vi vill ha; vi sätter yes_step = yes_init och går vidare.
+
+Slutligen pushar vi vår clause framåt och generaliserar så långt vi kan.
+
+Intressanta funktioner:
+- init.prove, step.prove (dvs InitInstance.prove, StepInstance.prove)
+- check
+
+Slutresultat:
+- Om c gick att bevisa i relevant cycle, så får vi true och en generaliserad, frampushad clause yes.
+- Om inte, så får vi false och en ny ScheduledClause som motsvarar en clause som, om den håller i cycle=k-1, "täpper till hålet" som ledde till ~c i cycle=k
+
+
+
+
+
+addClause(const Clause& c_)
+
+Den här tar in en Clause&, vilket borde innebära att den kan manipulera c_ som om det var det "riktiga" argumentet (enligt anroparen); dvs vi slipper avreferera pekare (vi kan jobba med c_ och inte *c_, som vi behövt göra om det var en Clause* vi fick).
+Samtidigt är det en const; vilket gör c_ read-only inuti addClause.
+I varianten där vi skickar en Clause* hade vi kunnat ändra i *c_.
+Om vi hade kört const Clause* (om det ens går?) hade vi fått en pekare vi inte kunnat ändra (?) som pekar på ett minne vi får ändra. 
+Varianten "const Clause c_" vet jag inte om det är vettigt alls – det hade velat skapa en kopia, och sedan inte fått ändra i den? Om det ens går, så är det onödigt: lägg tid på att skapa en kopia, som kastas bort i slutet, men begränsa dig ändå till att inte få ändra i den.
+Uppenbarligen är "const Clause& c_" det vi vill ha – inte value för att slippa kopiera; inte pointer för att slippa dereferera; och const för att vi inte ska modifiera den.
+
+Så vad händer?
+
+Om c_ redan är markerad som cycle_Undef, så har vi en invariant. Då lägger vi den i F_inv. Där finns alltså alla invarianter (clauses som håller obereonde av cykel / håller i alla korgar)!
+
+Om den inte är en invariant, så lägger vi den i rätt cycle. Det kräver lite book-keeping.
+
+Sedan plockar vi ut en referens c, som är en referens till det vi lagt i F (antingen F[cycle] eller F_inv). Varför? Går den att ändra i, kanske?
+
+Sedan händer saker jag inte förstår. Vad är forward och backward subsumption index här?
+
+Vi lägger också till c i andra listor, med prop.addClause och step.addClause. Vad innebär det? Vi anropar ju init.prove, step.prove och (säkert) prop.prove vid olika tillfällen; är det de som håller sig med olika listor av clauses? Vad skiljer dem åt; varför kan de inte ha samma?
+
+
+
+
+
+
+
+
+
+init.prove
+
+Denna finns i TripProofInstances.
+
+Den tar en Clause& c_, en const Clause& bot, en Clause& yes, och två SharedRef<ScheduledClause>& no och next.
+
+Men hallå där!
+init.prove tar 5 argument. Det finns sedan en variant som tar 3 argument, skapar ett dummy-argument och kallar prove() på de 3 + dummy, dvs 4 argument. När init.prove används i RelativeInduction så verkar det vara 3-argument-versionen. Men vad tusan hände med 4-argument-versionen? Den finns ju inte!
+
+Och det är samma sak med step.prove! Den kallas i regel med 2, då skapas en dummy som skickas in i en version som tar 3 – men den implementationen hittar jag inte, och den version som har själva beteendet kodat ska ta 4?
+
+Lösningen hittad! I deklarationen i TripProofInstances.h, så framgår att det sista argumentet (5:e resp 4:e) defaultar till NULL.
+
+
+
+extractInvariant() ?
+
+
+check()
+Finns definierad i preprocessor-direktiv längst ner i TripTypes.h. I debug-läge gör den en assert, annars evaluerar den bara argumentet, så argumentet och dess sidoeffekter utförs oavsett. Så det borde inte påverka logiken.
+
+
+
+
+
+
+
+
+
+
+
+
+TripProofInstances.cc
+
+Definierar StepInstance-metoder, det ser viktigt ut!
+
+StepInstance::prove:
+
+// Assume proved clauses
+verkar komma från vektorn (?) activate. Var kommer den ifrån?
+    Den är en "reusable temporary" från TripProofInstances.h. Typ vec<Lit>
+    Den verkar innehålla... aktiveringsliteraler?
+        Uppdatering: aktiveringsliteraler är "låtsas-literaler" a_n som kodar "cycle=n". Alla bevisade clauses c_n läggs in permanent på formen a_n -> c_n, dvs att den måste hålla när vi är i just den cykeln (tidssteget).
+    
+    Eller nja; addClause() är en metod som verkar lägga till clauses i activate.
+
+De läggs i "assumes" och "active".
+
+//Assume negation of c (outgoing)
+- dvs anta ~c i föregående steg?
+
+// Try to satisfy c (incoming)
+Försök uppnå c'?
+Eller är det tvärtom?
+
+Det jag just beskrivit är
+SAT?[constrs ^ ~c ^ c']
+där resultatet SAT beskrivs som
+"found a counterexample"
+Jag tolkar det som "motexempel mot att ~c skulle vara induktiv" - SAT-resultatet är ju ett bevis för att det går att gå från icke-c till c.
+
+
+Om resultatet är SAT så händer en massa saker jag inte förstår. shrinkModel? outputs.push? Har vi gjort färdigt ett steg nu, och går till nästa?
+
+
+
+Typer:
+
+Sig finns i mcl/CircTypes.
+"analogue of MiniSat's Lit"
+Lit finns i minisat/core/SolverTypes.h
+
+Bådadera representeras internt med en int.
+Sig allokerar värdet 0 åt true och 2 åt false.
+Lit kan jag inte se om den gör något liknande?
+Däremot finns lbool – "lifted booleans"
+
+lbool – SolverTypes.h (har print())
+
+SharedRef – TripTypes.h
+
+ScheduledClause – TripTypes.h
+ScheduledClause har ett fält next, som är den clause som nuvarande clause skulle implicera (dvs den vars bad state dennas bad state kan leda till).
+
+UnrolledCirc finns i Unroll.h.
+Den har metoder unroll(Sig x, cycle c) och unroll(Gate x, cycle c), som båda returnerar Sig. Det går alltså att köra uc.unroll på antingen en Sig eller en Gate, och få ut en Sig i båda fallen.
+
+
+
+
+Objekt/metod - typ - relevanta filer
+
+tip - TipCirc - tip/TipCirc.h, _.cc
+
+tip isA SeqCirc - mcl/SeqCirc.h
+
+SeqCirc isA Circ - mcl/Circ.h, _.cc, mcl/CircPrelude?
+
+printClause – TripTypes.h
+
+var(Lit p) – int – SolverTypes.h
+
+
+
