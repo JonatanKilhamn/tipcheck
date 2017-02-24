@@ -1,0 +1,330 @@
+max_var   = 78
+n_inputs  = 3
+n_outputs = 0
+n_flops   = 5
+n_gates   = 70
+n_bads    = 2
+n_cnstrs  = 1
+n_justs   = 0
+n_fairs   = 0
+sum       = 78
+circ-stats: #flops=5, #gates=64, #inps=3, #reset-gates=0, #reset-inps=0
+prop-stats: #safes=2, #lives=0, #cnstrs=1, #fairs=0
+Embedding fairness constraints...
+circ-stats: #flops=5, #gates=64, #inps=3, #reset-gates=0, #reset-inps=0
+prop-stats: #safes=2, #lives=0, #cnstrs=1, #fairs=0
+[PropInstance::prove] Assuming uncontr = 0
+[PropInstance::prove] assumptions contradictory
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] pred = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveRec] begin.
+[proveRec] PROVING.
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveAndGeneralize] cycle-0:
+[InitInstance::prove] Assuming uncontr = 0
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+[proveAndGeneralise] After init.prove: init_step = {  }@0
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { f2 }@0
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { f2 }@inv
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[proveRec] Proved the clause with uncontr = 0
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveAndGeneralize] cycle-0:
+[InitInstance::prove] Assuming uncontr = 1
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+[proveAndGeneralise] After init.prove: init_step = {  }@0
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { f2 }@0
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { f2 }@inv
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[proveRec] Proved the clause with uncontr = 1
+[addClause] c = { f2 }@0
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] pred = 
+{ inputs: 0, 1, 1
+  clause:~f0, f1, ~f2, f3, ~f4 }@0
+[proveRec] begin.
+[proveRec] PROVING.
+[proveRec] sc = 
+{ inputs: 0, 1, 1
+  clause:~f0, f1, ~f2, f3, ~f4 }@0
+[proveAndGeneralize] c = 
+{ inputs: 0, 1, 1
+  clause:~f0, f1, ~f2, f3, ~f4 }@0
+[proveAndGeneralize] cycle-0:
+[InitInstance::prove] Assuming uncontr = 0
+[InitInstance::prove] cand = { i5, -i8 }
+[InitInstance::prove] Proved the clause
+[proveAndGeneralise] After init.prove: init_step = {  }@0
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { ~f4 }@0
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { ~f4 }@inv
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { ~f4 }@1
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i8 }
+[InitInstance::prove] Proved the clause
+[proveRec] Proved the clause with uncontr = 0
+[proveRec] sc = 
+{ inputs: 0, 1, 1
+  clause:~f0, f1, ~f2, f3, ~f4 }@0
+[proveAndGeneralize] c = 
+{ inputs: 0, 1, 1
+  clause:~f0, f1, ~f2, f3, ~f4 }@0
+[proveAndGeneralize] cycle-0:
+[InitInstance::prove] Assuming uncontr = 1
+[InitInstance::prove] cand = { i5, -i8 }
+[InitInstance::prove] Proved the clause
+[proveAndGeneralise] After init.prove: init_step = {  }@0
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { ~f4 }@0
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { ~f4 }@inv
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { ~f4 }@1
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i8 }
+[InitInstance::prove] Proved the clause
+[proveRec] Proved the clause with uncontr = 1
+[addClause] c = { ~f4 }@1
+[PropInstance::prove] Assuming uncontr = 1
+[decideCycle] entering pushClauses
+[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { ~f4 }@2
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[clearInactive] removed 0 inactive clauses
+[relativeInduction] decided one cycle
+[rip] 2: 1 | 1 (0) = 2, time = 0.0 s, #safes=2, #lives=0
+[rip-stats] #clauses=2, depth=2
+[init-stats] vrs=       3, cls=       3, con=       0
+[prop-stats] vrs=      16, cls=      46, con=       4
+[step-stats] vrs=      28, cls=      66, con=       3
+[PropInstance::prove] Assuming uncontr = 0
+[PropInstance::prove] assumptions contradictory
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] pred = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[proveRec] begin.
+[proveRec] PROVING.
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+first step.prove
+[StepInstance::prove] c = { ~f0, f1, f2, ~f3 }@1
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[StepInstance::prove] Assuming uncontr = 0
+sat
+[StepInstance::prove] pred = 
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, ~f0, f1, ~f2, f3, f4 }@0
+[StepInstance::prove] result = 0
+[proveRec] Blocking pred. clause:
+
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, ~f0, f1, ~f2, f3, f4 }@0
+[blockClause]
+[addClause] c = { ~i0, i1, i2, ~f0, f1, ~f2, f3, f4 }@inv
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+first step.prove
+[StepInstance::prove] c = { ~f0, f1, f2, ~f3 }@1
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[StepInstance::prove] Assuming uncontr = 1
+unsat
+[StepInstance::prove] result = 1
+[proveAndGeneralise] After step.prove: yes_step = { ~f0, f1, f2 }@1
+[InitInstance::prove] cand = { i5, i6 }
+[InitInstance::prove] Proved the clause
+[generalize] 4.3
+[StepInstance::prove] c = { ~f0, f2 }@1
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+.2[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+.[StepInstance::prove] c = { ~f0 }@1
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+.
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { ~f0, f2 }@1
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { ~f0, f2 }@inv
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { ~f0, f2 }@2
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+[proveRec] Proved the clause with uncontr = 1
+[addClause] c = { ~f0, f2 }@2
+[proveRec] SUBSUMED at cycle 2!
+[PropInstance::prove] Assuming uncontr = 1
+[tip] Property 1 reached radius 1 (rip)
+[decideCycle] entering pushClauses
+[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { ~f4 }@2
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i8 }
+[InitInstance::prove] Proved the clause
+[addClause] c = { ~f4 }@2
+[addClause] c = { ~f0, f2 }@inv
+[addClause] c = { ~f4 }@inv
+[extractInvariant] extracted invariant of size 2
+[clearInactive] removed 3 inactive clauses
+[relativeInduction] decided one cycle
+[rip] 3: 1 0 | 0 (3) = 4, time = 0.0 s, #safes=2, #lives=0
+[rip-stats] #clauses=4, depth=3
+[init-stats] vrs=       3, cls=       3, con=       0
+[prop-stats] vrs=      16, cls=      47, con=       5
+[step-stats] vrs=      27, cls=      74, con=       7
+[PropInstance::prove] Assuming uncontr = 0
+[PropInstance::prove] assumptions contradictory
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] assumptions contradictory
+[tip] Safety property 1 was proved (rip)
+[rip] 3: 1 0 | 0 (3) = 4, time = 0.0 s, #safes=1, #lives=0
+[rip-stats] #clauses=4, depth=3
+[init-stats] vrs=       3, cls=       3, con=       0
+[prop-stats] vrs=      16, cls=      47, con=       6
+[step-stats] vrs=      27, cls=      74, con=       7
+[relativeInduction] invariant:
+ >> { ~i0, i1, i2, ~f0, f1, ~f2, f3, f4 }@inv
+ >> { ~f0, f2 }@inv
+ >> { ~f4 }@inv
+Rip statistics:
+================================================================================
+
+Clauses:
+  Added:             4
+  Backward subsumed: 0
+  Moved:             1
+  Revived:           0
+  Avg. size:         1.0
+  Total Literals:    4 (69.2% deleted)
+  Generalizations:   3 (0.8 / clause)
+
+
+Candidate Clauses:
+  Added:             3
+  Forward subsumed:  1
+  Revived:           0
+  Avg. size:         4.3
+  Total Literals:    13 (13.3% deleted)
+
+SAT-solving:      Init-Instance  Step-Instance Prop-Instance
+  Solves:                    10             23            23
+  Conflicts:                  0              7             6
+  Propagations:               1            554           328
+  CPU-Time:                 0.0 s          0.0 s          0.0 s
+
+
+Blocked Clauses:
+
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, ~f0, f1, ~f2, f3, f4 }@inv
+
+CPU-time:
+  Rip:   0.00 s
+  Bmc:   0.00 s
+  Total: 0.00 s
+
+Resources used
+================================================================================
+  CPU time:       0.01 s
+  Peak memory:    0.4 Mb
+
+Verification results
+================================================================================
+  Proved:     1
+  Falsified:  0
+  Unknown:    1
+
+RUN FINISHED; exit value 0; real time: 20ms; user: 0ms; system: 0ms
+
+Run with setting 1:
+            if (uncontr == 1) {
+                assumes.push(l);
+            } else {
+                assumes.push(~l);
+            }
