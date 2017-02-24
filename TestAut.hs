@@ -37,21 +37,29 @@ testAutA = Aut { autName = "Aut1"
  where
   ts = [ downA
        , upA
+       , loopA
        ]
   downA = Trans { start = locA
                 , event = "a"
                 , guards = []
-                , updates = []
+                , updates = [AssignInt ("acounter") (IntConst 0)]
                 , end = locB
-                , uncontrollable = True
+                , uncontrollable = False
                 }
   upA = Trans { start = locB
               , event = "b"
               , guards = []
-              , updates = []
+              , updates = [AssignInt ("acounter") (IntConst 0)]
               , end = locA
               , uncontrollable = False
               }
+  loopA = Trans { start = locB
+                , event = "c"
+                , guards = []
+                , updates = [AssignInt ("acounter") (IntConst 1)]
+                , end = locB
+                , uncontrollable = False
+                }
   locA = "A1"
   locB = "B1"
   
@@ -70,14 +78,14 @@ testAutB = Aut { autName = "Aut2"
   downB = Trans { start = locA
                 , event = "b"
                 , guards = []
-                , updates = []
+                , updates = [AssignInt ("bcounter") (IntConst 1)]
                 , end = locB
-                , uncontrollable = False
+                , uncontrollable = True
                 }
   upB = Trans { start = locB
               , event = "c"
               , guards = []
-              , updates = []
+              , updates = [AssignInt ("bcounter") (IntConst 0)]
               , end = locA
               , uncontrollable = False
               }
@@ -101,7 +109,8 @@ test_prop =
 
      let err = anyError sc
      
-     bad <- and2 (atLoc sc "Aut1" "B1") (atLoc sc "Aut2" "B2")
+     --bad <- and2 (atLoc sc "Aut1" "B1") (atLoc sc "Aut2" "B2")
+     let bad = (bCounter sc)!!0
 
      -- props
      return $ props
@@ -111,6 +120,7 @@ test_prop =
        }
  where
    atLoc sc name loc = fromJust $ lookup loc $ fromJust $ lookup (name) (locRefs sc)
+   bCounter sc = fst . fromJust $ lookup ("bcounter") (varRefs sc)
 
 test_c :: Circuit
 test_c = circuit test_prop   
@@ -123,9 +133,6 @@ main = writeCircuit "examples/test1" test_c
 
 
 
-
-oneHotBool :: (Int, Int) -> [Bool]
-oneHotBool (val, max) = [ if (i == val) then True else False | i <- [1..max] ]
 
 
 -- Output: last_constrs, bads, Circuit
@@ -141,9 +148,12 @@ none :: Int -> [Bool]
 none = flip replicate False
 
 a, b, c :: [Bool]
-a = oneHotBool (1,3)
+a = eventInput "a" autSynch
+b = eventInput "b" autSynch
+c = eventInput "c" autSynch
+{--a = oneHotBool (1,3)
 b = oneHotBool (2,3)
-c = oneHotBool (3,3)
+c = oneHotBool (3,3)--}
 
 fstpair3 :: (a,b,c) -> (a,b)
 fstpair3 (a,b,c) = (a,b)

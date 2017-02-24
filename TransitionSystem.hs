@@ -243,5 +243,13 @@ setEventUncontrollable e s =
                      else t
 
 
--- TODO: checkSynchronisation, which checks that all initial values lie between the bounds
+oneHotBool :: (Int, Int) -> [Bool]
+oneHotBool (val, max) = [ if (i == val) then True else False | i <- [1..max] ]
+
+eventInput :: Event -> Synchronisation -> [Bool]
+eventInput e s = [ if e==ev then True else False | ev <- allEvents s ]
+  
+
+
+-- TODO: checkSynchronisation, which checks that all initial values lie within the bounds
 

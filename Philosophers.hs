@@ -43,9 +43,9 @@ philosopher (p, max) = Aut { autName = "p"++this
   right = show $ (p+1) `mod` max
   ts = [ takeLeft
        , takeRight
-       , eat
-       , putDown
-       ]
+       , eat]
+       {--, putDown
+       ]--}
   takeLeft = Trans { start = idle
                    , event = "tl"++this
                    , guards = takeLeftGuards
@@ -74,19 +74,21 @@ philosopher (p, max) = Aut { autName = "p"++this
                   , end = idle
                   , uncontrollable = True
                   }
-  takeLeftGuards = [ GInt Equals ("hl"++this) (IntConst 0)]
+  takeLeftGuards = []--[ GInt Equals ("hl"++this) (IntConst 0)]
                    --, GInt Equals ("hr"++left) (IntConst 0)]
-  takeRightGuards = [ GInt Equals ("hr"++this) (IntConst 0)]
+  takeRightGuards = []--[ GInt Equals ("hr"++this) (IntConst 0)]
                     --, GInt Equals ("hl"++right) (IntConst 0)]
-  eatGuards = [ GInt Equals ("hl"++this) (IntConst 1)
-              , GInt Equals ("hr"++this) (IntConst 1)]
-  putDownUpdates = [ AssignInt ("hl"++this) (IntConst 0)
-                   , AssignInt ("hr"++this) (IntConst 0)]
+  eatGuards = []--[ GInt Equals ("hl"++this) (IntConst 1)
+              --, GInt Equals ("hr"++this) (IntConst 1)]
+  putDownUpdates = []--[ AssignInt ("hl"++this) (IntConst 0)
+                   --, AssignInt ("hr"++this) (IntConst 0)]
 
 
 --------------------------------------------------------------------------------
 -- Circuits
 
+testNbr :: Int
+testNbr = 2
 
 
 phils :: Int -> L SynchCircuit
@@ -123,7 +125,8 @@ phils_prop n =
      -- props
      return $ props
        { always = [neg err]
-       , nevers  = [b1] --held_twice --map snd $ boolVarRefs sc
+       , nevers  = [neg $ uc, b1] {-- FOR NOW: FIRST 'never' MUST ALWAYS BE "ALL TRANSITIONS CONTROLLABLE" (i.e. the negation of "any transition uncontrollable". --}
+       --, nevers  = [neg uc, b1] --held_twice --map snd $ boolVarRefs sc
        , finites = []
        }
  where
@@ -139,16 +142,13 @@ phils_c :: Int -> Circuit
 phils_c = circuit . phils_prop   
    
 main :: IO ()
-main = writeCircuit "examples/phils2" (phils_c 2)
+main = writeCircuit "examples/phils2" (phils_c testNbr)
 
 --------------------------------------------------------------------------------
 -- Step example
 
 
 
-
-oneHotBool :: (Int, Int) -> [Bool]
-oneHotBool (val, max) = [ if (i == val) then True else False | i <- [1..max] ]
 
 -- Output: last_constrs, bads, Circuit
 stepsPhils :: Int -> [[Bool]] -> (Bool,[Bool],Circuit)
@@ -163,18 +163,14 @@ none :: Int -> [Bool]
 none = flip replicate False
 
 tl1, tr1, eat1, pd1, tl0, tr0, eat0, pd0 :: [Bool]
-{-tl0 = oneHotBool (1,4)
-tr0 = oneHotBool (2,4)
-eat0 = oneHotBool (3,4)
-pd0 = oneHotBool (4,4)-}
-tl1 = oneHotBool (1,8)
-tr1 = oneHotBool (2,8)
-eat1 = oneHotBool (3,8)
-pd1 = oneHotBool (4,8)
-tl0 = oneHotBool (5,8)
-tr0 = oneHotBool (6,8)
-eat0 = oneHotBool (7,8)
-pd0 = oneHotBool (8,8)
+tl1 = eventInput "tl1" (philSynch testNbr)
+tr1 = eventInput "tr1" (philSynch testNbr)
+eat1 = eventInput "eat1" (philSynch testNbr)
+pd1 = eventInput "pd1" (philSynch testNbr)
+tl0 = eventInput "tl0" (philSynch testNbr)
+tr0 = eventInput "tr0" (philSynch testNbr)
+eat0 = eventInput "eat0" (philSynch testNbr)
+pd0 = eventInput "pd0" (philSynch testNbr)
 
 fstpair3 :: (a,b,c) -> (a,b)
 fstpair3 (a,b,c) = (a,b)
