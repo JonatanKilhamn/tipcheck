@@ -1,0 +1,28 @@
+[...]
+
+
+[proveRec] begin.
+[proveRec] PROVING.
+[proveRec] sc = 
+{ inputs: 1, 0, 1, 1, 1, 1, 1, 1
+  clause:f0, ~f1, f2, ~f3, ~f4, f7 }@1
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1, 1, 1, 1, 1, 1
+  clause:f0, ~f1, f2, ~f3, ~f4, f7 }@1
+first step.prove
+[StepInstance::prove] c = { f0, ~f1, f2, ~f3, ~f4, f7 }@1
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1, 1, 1, 1, 1, 1
+  clause:f0, ~f1, f2, ~f3, ~f4, f7 }@1
+[StepInstance::prove] Assuming uncontr = 0
+sat[shrinkModel] 8.6xx
+[StepInstance::prove] pred = 
+{ inputs: 1, 1, 1, 1, 0, 1, 1, 1
+  clause:i0, i1, i2, i3, ~i4, i5, i6, i7, f0, ~f1, f2, ~f3, f4, f7 }@0
+[StepInstance::prove] result = 0
+[proveRec] Blocking pred. clause:
+
+{ inputs: 1, 1, 1, 1, 0, 1, 1, 1
+  clause:i0, i1, i2, i3, ~i4, i5, i6, i7, f0, ~f1, f2, ~f3, f4, f7 }@0
+[blockClause]
+[addClause] c = { i0, i1, i2, i3, ~i4, i5, i6, i7, f0, ~f1, f2, ~f3, f4, f7 }@inv
