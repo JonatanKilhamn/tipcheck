@@ -1,0 +1,431 @@
+max_var   = 86
+n_inputs  = 3
+n_outputs = 0
+n_flops   = 6
+n_gates   = 77
+n_bads    = 2
+n_cnstrs  = 1
+n_justs   = 0
+n_fairs   = 0
+sum       = 86
+circ-stats: #flops=6, #gates=67, #inps=3, #reset-gates=0, #reset-inps=0
+prop-stats: #safes=2, #lives=0, #cnstrs=1, #fairs=0
+Embedding fairness constraints...
+circ-stats: #flops=6, #gates=67, #inps=3, #reset-gates=0, #reset-inps=0
+prop-stats: #safes=2, #lives=0, #cnstrs=1, #fairs=0
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 0
+[PropInstance::prove] pred = 
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, ~f0, f1, ~f2, f3, ~f5 }@0
+[blockClause]
+[addClause] c = { ~i0, i1, i2, ~f0, f1, ~f2, f3, ~f5 }@inv
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 0
+[PropInstance::prove] pred = 
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, f0, ~f1, ~f2, f3, ~f5 }@0
+[blockClause]
+[addClause] c = { ~i0, i1, i2, f0, ~f1, ~f2, f3, ~f5 }@inv
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 0
+[PropInstance::prove] assumptions contradictory
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] pred = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveRec] begin.
+[proveRec] PROVING.
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveAndGeneralize] cycle-0:
+[InitInstance::prove] Assuming uncontr = 0
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+[proveAndGeneralise] After init.prove: init_step = {  }@0
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { f2 }@0
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { f2 }@inv
+[StepInstance::prove] next = <null>
+[StepInstance::prove] needed to add induction hypothesis => sat=1
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+[proveRec] Proved the clause with uncontr = 0
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@0
+[proveAndGeneralize] cycle-0:
+[InitInstance::prove] Assuming uncontr = 1
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+[proveAndGeneralise] After init.prove: init_step = {  }@0
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { f2 }@0
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { f2 }@inv
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+[proveRec] Proved the clause with uncontr = 1
+[addClause] c = { f2 }@0
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 1
+[decideCycle] entering pushClauses
+[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+[clearInactive] removed 0 inactive clauses
+[relativeInduction] decided one cycle
+[rip] 2: 1 (2) = 3, time = 0.0 s, #safes=2, #lives=0
+[rip-stats] #clauses=3, depth=2
+[init-stats] vrs=       1, cls=       0, con=       0
+[prop-stats] vrs=      15, cls=      38, con=       2
+[step-stats] vrs=      25, cls=      73, con=       2
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 0
+[PropInstance::prove] assumptions contradictory
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] pred = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[proveRec] begin.
+[proveRec] PROVING.
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+first step.prove
+[StepInstance::prove] c = { ~f0, f1, f2, ~f3 }@1
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[StepInstance::prove] Assuming uncontr = 0
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+[shrinkModel] 6.4xx
+[StepInstance::prove] pred = 
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, ~f0, f1, ~f2, f3 }@0
+[StepInstance::prove] result = 0
+[proveRec] Blocking pred. clause:
+
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, ~f0, f1, ~f2, f3 }@0
+[blockClause]
+[addClause] c = { ~i0, i1, i2, ~f0, f1, ~f2, f3 }@inv
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+first step.prove
+[StepInstance::prove] c = { ~f0, f1, f2, ~f3 }@1
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@1
+[StepInstance::prove] Assuming uncontr = 1
+unsat
+[StepInstance::prove] result = 1
+[proveAndGeneralise] After step.prove: yes_step = { ~f0, f1, f2 }@1
+[InitInstance::prove] cand = { i5, i6 }
+[InitInstance::prove] Proved the clause
+[generalize] 4.3
+[StepInstance::prove] c = { ~f0, f2 }@1
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+.2[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+.[StepInstance::prove] c = { ~f0 }@1
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i4 }
+[InitInstance::prove] Found counterexample
+.
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { ~f0, f2 }@1
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { ~f0, f2 }@inv
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+[proveRec] Proved the clause with uncontr = 1
+[addClause] c = { ~f0, f2 }@1
+[proveRec] SUBSUMED at cycle 1!
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 1
+[tip] Property 1 reached radius 1 (rip)
+[decideCycle] entering pushClauses
+[StepInstance::prove] c = { f2 }@1
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+[StepInstance::prove] c = { ~f0, f2 }@2
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+[clearInactive] removed 1 inactive clauses
+[relativeInduction] decided one cycle
+[rip] 3: 1 1 (2) = 5, time = 0.0 s, #safes=2, #lives=0
+[rip-stats] #clauses=5, depth=3
+[init-stats] vrs=       1, cls=       0, con=       0
+[prop-stats] vrs=      17, cls=      37, con=       2
+[step-stats] vrs=      27, cls=      74, con=       6
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 0
+[PropInstance::prove] assumptions contradictory
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] pred = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3, ~f5 }@2
+[proveRec] begin.
+[proveRec] PROVING.
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3, ~f5 }@2
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3, ~f5 }@2
+first step.prove
+[StepInstance::prove] c = { ~f0, f1, f2, ~f3, ~f5 }@2
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3, ~f5 }@2
+[StepInstance::prove] Assuming uncontr = 0
+unsat
+[StepInstance::prove] result = 1
+[proveAndGeneralise] After step.prove: yes_step = { ~f0, ~f5 }@2
+[InitInstance::prove] cand = { -i4, -i9 }
+[InitInstance::prove] Proved the clause
+[generalize] 5.2
+[StepInstance::prove] c = { ~f0 }@2
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+.[StepInstance::prove] c = { ~f5 }@2
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i9 }
+[InitInstance::prove] Proved the clause
+.1
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { ~f5 }@2
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { ~f5 }@inv
+[StepInstance::prove] next = <null>
+[StepInstance::prove] needed to add induction hypothesis => sat=1
+sat
+pred = null
+[StepInstance::prove] result = 0
+[proveRec] Proved the clause with uncontr = 0
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3, ~f5 }@2
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3, ~f5 }@2
+first step.prove
+[StepInstance::prove] c = { ~f0, f1, f2, ~f3, ~f5 }@2
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3, ~f5 }@2
+[StepInstance::prove] Assuming uncontr = 1
+unsat
+[StepInstance::prove] result = 1
+[proveAndGeneralise] After step.prove: yes_step = { ~f5 }@2
+[InitInstance::prove] cand = { -i9 }
+[InitInstance::prove] Proved the clause
+[generalize] 5.1
+
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { ~f5 }@2
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { ~f5 }@inv
+[StepInstance::prove] next = <null>
+[StepInstance::prove] needed to add induction hypothesis => sat=1
+sat
+pred = null
+[StepInstance::prove] result = 0
+[proveRec] Proved the clause with uncontr = 1
+[addClause] c = { ~f5 }@2
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] pred = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@2
+[proveRec] begin.
+[proveRec] PROVING.
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@2
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@2
+first step.prove
+[StepInstance::prove] c = { ~f0, f1, f2, ~f3 }@2
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@2
+[StepInstance::prove] Assuming uncontr = 0
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+[shrinkModel] 6.4xx
+[StepInstance::prove] pred = 
+{ inputs: 1, 1, 0
+  clause:i0, i1, ~i2, f0, ~f1, f2, ~f3 }@1
+[StepInstance::prove] result = 0
+[proveRec] Blocking pred. clause:
+
+{ inputs: 1, 1, 0
+  clause:i0, i1, ~i2, f0, ~f1, f2, ~f3 }@1
+[blockClause]
+[addClause] c = { i0, i1, ~i2, f0, ~f1, f2, ~f3 }@inv
+[proveRec] sc = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@2
+[proveAndGeneralize] c = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@2
+first step.prove
+[StepInstance::prove] c = { ~f0, f1, f2, ~f3 }@2
+[StepInstance::prove] next = 
+{ inputs: 1, 0, 1
+  clause:~f0, f1, f2, ~f3 }@2
+[StepInstance::prove] Assuming uncontr = 1
+unsat
+[StepInstance::prove] result = 1
+[proveAndGeneralise] After step.prove: yes_step = { ~f0, f2 }@2
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+[generalize] 4.2
+[StepInstance::prove] c = { f2 }@2
+[StepInstance::prove] next = <null>
+[StepInstance::prove] did NOT need to add induction hypothesis.
+sat
+pred = null
+[StepInstance::prove] result = 0
+.[StepInstance::prove] c = { ~f0 }@2
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i4 }
+[InitInstance::prove] Found counterexample
+.
+[proveAndGeneralise] After generalisation
+[proveAndGeneralise] yes_step = { ~f0, f2 }@2
+[proveAndGeneralise] Checking for inductive
+[StepInstance::prove] c = { ~f0, f2 }@inv
+[StepInstance::prove] next = <null>
+unsat
+[StepInstance::prove] result = 1
+[InitInstance::prove] cand = { -i4, i6 }
+[InitInstance::prove] Proved the clause
+[proveAndGeneralise] It was inductive
+[proveRec] Proved the clause with uncontr = 1
+[addClause] c = { ~f0, f2 }@inv
+[proveRec] extractInvariant:
+[addClause] c = { ~f5 }@inv
+[extractInvariant] extracted invariant of size 1
+[proveRec] SUBSUMED at cycle -1!
+[PropInstance::prove] gate(uncSig).x=41 and l.x=42
+[PropInstance::prove] Assuming uncontr = 1
+[PropInstance::prove] assumptions contradictory
+[tip] Safety property 1 was proved (rip)
+[rip] 3: 1 0 | 0 (4) = 7, time = 0.0 s, #safes=1, #lives=0
+[rip-stats] #clauses=7, depth=3
+[init-stats] vrs=       1, cls=       0, con=       0
+[prop-stats] vrs=      17, cls=      39, con=       3
+[step-stats] vrs=      26, cls=      79, con=      14
+[relativeInduction] invariant:
+ >> { ~i0, i1, i2, ~f0, f1, ~f2, f3 }@inv
+ >> { i0, i1, ~i2, f0, ~f1, f2, ~f3 }@inv
+ >> { ~f0, f2 }@inv
+ >> { ~f5 }@inv
+Rip statistics:
+================================================================================
+
+Clauses:
+  Added:             8
+  Backward subsumed: 3
+  Moved:             0
+  Revived:           0
+  Avg. size:         0.8
+  Total Literals:    6 (64.7% deleted)
+  Generalizations:   7 (0.9 / clause)
+
+
+Candidate Clauses:
+  Added:             4
+  Forward subsumed:  2
+  Revived:           0
+  Avg. size:         4.2
+  Total Literals:    17 (29.2% deleted)
+
+SAT-solving:      Init-Instance  Step-Instance Prop-Instance
+  Solves:                    11             33            33
+  Conflicts:                  0             14             3
+  Propagations:               3            821           457
+  CPU-Time:                 0.0 s          0.0 s          0.0 s
+
+
+Blocked Clauses:
+
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, ~f0, f1, ~f2, f3, ~f5 }@inv
+
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, f0, ~f1, ~f2, f3, ~f5 }@inv
+
+{ inputs: 0, 1, 1
+  clause:~i0, i1, i2, ~f0, f1, ~f2, f3 }@inv
+
+{ inputs: 1, 1, 0
+  clause:i0, i1, ~i2, f0, ~f1, f2, ~f3 }@inv

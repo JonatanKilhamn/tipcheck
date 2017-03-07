@@ -585,7 +585,16 @@ Nu fungerar alltså TestAut, både med och utan konstiga "förvillande" övergå
 Nya buggar till på måndag: i TestAut, med en loopA som går B1-(c)->B1, så blockeras 'c', vad jag tycker i onödan.
 
 
+2017-03-07
 
+Så vad som händer i ovanstående bugg är att systemet hittar en övergång från bad state till bad state, och blockerar den. Så jag misstänker att antingen prop.prove eller step.prove inte kollar "bakåt" som den borde. Undersök!
+
+Svar: det var inte alls det. Det är ett djupare problem med min algoritm på den teoretiska sidan. Övergången ifråga är en kontrollerbar, som kan leda till ett bad state (ergo borde förbjudas) men som ligger i ett område som ändå är/kommer bli onåbart pga en annan, viktigare blockering (ergo behöver inte förbjudas). I det här fallet sker blockeringen till och med efter att området redan gjorts onåbart, vilket innebär att det skulle kunnat lösas genom att söka "hela vägen bak" innan någon blockering görs. Avvägning: å ena sidan riskerar vi att blockera övergångar vi inte behöver (output och därmed controllern blir större än nödvändigt), å andra sidan riskerar vi att utföra extra jobb i sökningen.
+
+
+
+Jag testar lite grejer på filosoferna, för de är lätta att skala. Exempel:
+Med 3 filosofer (enbart TakeLeft kontrollerbar) blockerar den 16 separata clauses för varje filosof, dvs 48 totalt. Dock innehåller de skapade invarianterna bara 4 clauses per filosof, dvs 12 totalt. Är det möjligt att basera output-controllern på dessa invarianter istället för de uttryckliga "blocked clauses"?
 
 
 

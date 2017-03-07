@@ -51,7 +51,7 @@ philosopher (p, max) = Aut { autName = "p"++this
                    , guards = takeLeftGuards
                    , updates = [AssignInt ("hl"++this) (IntConst 1)]
                    , end = idle
-                   , uncontrollable = True
+                   , uncontrollable = False
                    }
   takeRight = Trans { start = idle
                     , event = "tr"++this
@@ -88,7 +88,7 @@ philosopher (p, max) = Aut { autName = "p"++this
 -- Circuits
 
 testNbr :: Int
-testNbr = 2
+testNbr = 3
 
 
 phils :: Int -> L SynchCircuit
@@ -143,6 +143,9 @@ phils_c = circuit . phils_prop
    
 main :: IO ()
 main = writeCircuit "examples/phils2" (phils_c testNbr)
+
+write :: Int -> IO ()
+write n = writeCircuit "examples/phils2" (phils_c n)
 
 --------------------------------------------------------------------------------
 -- Step example

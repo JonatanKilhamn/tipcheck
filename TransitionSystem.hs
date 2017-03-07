@@ -83,10 +83,16 @@ data Variable
   , upper :: Int
   , initial :: Int
   }
-  deriving ( Show, Eq )
+  deriving ( Eq )
+
+instance Show Variable where
+  show var = "["++(show $ lower var)++".."++(show $ upper var)++"], init:"++(show $ initial var)
 
 isBooleanVariable :: Variable -> Bool
 isBooleanVariable v = (lower v == 0) && (upper v == 1)
+
+mkVar :: (Int,Int,Int) -> Variable
+mkVar (l,u,i) = Variable {lower=l,upper=u,initial=i}
 
 {-data Guard
   = Guard
@@ -184,6 +190,12 @@ instance Show Synchronisation where
     [ "#AUTOMATA: " ++ (show $ length $ automata synch) ] ++
     [ "AUT. No "++ (show i) ++ " " ++ (show a)
     | (a,i) <- zip (automata synch) [1..]
+    ] ++
+    [ "VARIABLES: "
+    | not (null (allVars synch))
+    ] ++
+    [ "  " ++ name ++ ": " ++ (show var)
+    | (name, var) <- M.assocs $ allVars synch
     ]
 
 events :: Automaton -> [Event]
@@ -194,7 +206,7 @@ getAllVars :: Automaton -> M.Map VarName Variable
 getAllVars a = M.fromList $ zip varNames (repeat unknownVar)
  where varNames = ordNub $ concat $ map varNames' (transitions a)
        varNames' t = concat $ (map guardVarNames (guards t)) ++ (map updateVarNames (updates t))
-       unknownVar = Variable {lower = 0, upper = 1, initial = 0}
+       unknownVar = Variable {lower = 0, upper = 3, initial = 0}
 
 
 synchronise :: Automaton -> Synchronisation -> Synchronisation
@@ -206,22 +218,25 @@ synchronise a s =
  where takeFirst = flip seq
 
 setDefault :: (VarName, Int) -> Synchronisation -> Synchronisation
-setDefault (bv, n) s =
- let v = (allVars s) M.! bv in
-  s {allVars = M.update (\_ -> Just v {initial = n}) bv (allVars s)
+setDefault (name, n) s =
+ let v = (allVars s) M.! name in
+  s {allVars = M.adjust (\_ -> v {initial = n}) name (allVars s)
     }
 
 setRangeMax :: (VarName, Int) -> Synchronisation -> Synchronisation
-setRangeMax (bv, n) s =
- let v = (allVars s) M.! bv in
-  s {allVars = M.update (\_ -> Just v {upper = n}) bv (allVars s)
+setRangeMax (name, n) s =
+ let v = (allVars s) M.! name in
+  s {allVars = M.adjust (\_ -> v {upper = n}) name (allVars s)
     }
 
 setRangeMin :: (VarName, Int) -> Synchronisation -> Synchronisation
-setRangeMin (bv, n) s =
- let v = (allVars s) M.! bv in
-  s {allVars = M.update (\_ -> Just v {lower = n}) bv (allVars s)
+setRangeMin (name, n) s =
+ let v = (allVars s) M.! name in
+  s {allVars = M.adjust (\_ -> v {lower = n}) name (allVars s)
     }
+
+setVars :: [(VarName, Variable)] -> Synchronisation -> Synchronisation
+setVars vs s = foldr (\(name, var) -> \sy -> sy {allVars = M.adjust (\_ -> var) name (allVars sy)}) s vs
 
 
 emptySynch :: Synchronisation

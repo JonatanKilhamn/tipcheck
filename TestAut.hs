@@ -55,7 +55,7 @@ testAutA = Aut { autName = "Aut1"
               }
   loopA = Trans { start = locB
                 , event = "c"
-                , guards = []
+                , guards = [GInt Equals ("bcounter") (IntConst 1)]
                 , updates = [AssignInt ("acounter") (IntConst 1)]
                 , end = locB
                 , uncontrollable = False
