@@ -597,6 +597,13 @@ Jag testar lite grejer på filosoferna, för de är lätta att skala. Exempel:
 Med 3 filosofer (enbart TakeLeft kontrollerbar) blockerar den 16 separata clauses för varje filosof, dvs 48 totalt. Dock innehåller de skapade invarianterna bara 4 clauses per filosof, dvs 12 totalt. Är det möjligt att basera output-controllern på dessa invarianter istället för de uttryckliga "blocked clauses"?
 
 
+Jag försökte också fixa unary-encoded integer subtraction. Jag hittade en bugg i mina sorting networks, men det löste inte hela problemet.
+
+2017-03-10
+
+Nu tror jag äntligen att min subtraktion fungerar som den ska!
+
+
 
 
 

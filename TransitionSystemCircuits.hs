@@ -90,6 +90,7 @@ data PartialSynchCircuit
   , globalError :: Ref
   , uncontr :: Ref
   }
+ deriving ( Show )
 
 type LocationRefMap = [(Name, IndexedOneHot Location)]
 
@@ -186,7 +187,6 @@ processSystem s =
                           , anyUncontr = (uncontr state1)
                           }
      return circuit
-
 
 
 processAutomaton :: PartialSynchCircuit -> Automaton ->
@@ -317,19 +317,8 @@ guardToLava :: VarRefMap -> Guard -> L Ref
 guardToLava vrm (GInt pred x exp) =
  do 
   let un = fromJust $ lookup x vrm
-  case (exp) of
-       (IntConst i) -> compareIVConstant pred un i
-       (IntVar y) -> compareIntVariables pred un (fromJust $ lookup y vrm)
-       (Plus e1 e2) -> undefined --case (intExprToUn
-       --TODO: recursion to handle plus and minus
-
-
--- TODO
-unaryPlus :: IntVariable -> IntVariable -> L IntVariable
-unaryPlus = undefined
-
-unaryMinus :: IntVariable -> IntVariable -> L IntVariable
-unaryMinus = undefined
+  iv <- intExprToIntVar vrm exp
+  compareIntVariables pred un iv
 
 
 
@@ -368,8 +357,9 @@ updateToLava shouldUpdate vm (AssignInt varName expr) =
       lastVal = latestVal var
       hasUd = hasUpdated var
       hasErr = hasError var      
+      vrm = zip (map fst vm) (map (origVal . snd) vm)
       
-  newVal <- intExprToIntVar vm expr
+  newVal <- intExprToIntVar vrm expr
     
   (lastVal', hasUpdated', hasError') <-
     updateIntVar (lastVal, hasUd, hasErr, shouldUpdate, newVal)
@@ -383,30 +373,42 @@ updateToLava shouldUpdate vm (AssignInt varName expr) =
   return $ replaceAt (varName, newVarState) vm
 
 
-intExprToIntVar :: VarMap -> IntExpr -> L IntVariable
-intExprToIntVar vm (IntConst n) = return ([],n)
-intExprToIntVar vm (IntVar x) = return . latestVal . fromJust . (lookup x) $ vm
-intExprToIntVar vm (Plus e1 e2) =
- do
-  (refs1, offs1) <- intExprToIntVar vm e1
-  (refs2, offs2) <- intExprToIntVar vm e2
-  refs <- 
+unaryPlus :: IntVariable -> IntVariable -> L IntVariable
+unaryPlus (refs1, offs1) (refs2, offs2) = do
+  refs <-
    case (refs1,refs2) of
         ([],_) -> return refs2
         (_,[]) -> return refs1
         (_,_) -> mergesortl (refs1++refs2)
   return (refs, offs1+offs2)
-intExprToIntVar vm (Minus e1 (IntConst n)) =
+
+unaryMinus :: IntVariable -> IntVariable -> L IntVariable
+unaryMinus (xs, offsx) (ys,offsy) = do
+  let yr = (last $ range (ys,0))
+      revx = fmap neg $ reverse xs
+  (ns,_) <- unaryPlus (revx,0) (ys,0)
+  let nr = (last $ range (ns, 0))
+      revn = fmap neg $ reverse ns
+  return (revn, -yr+offsx+offsy)
+
+
+intExprToIntVar :: VarRefMap -> IntExpr -> L IntVariable
+intExprToIntVar vrm (IntConst n) = return ([],n)
+intExprToIntVar vrm (IntVar x) = return . fromJust . (lookup x) $ vrm
+intExprToIntVar vrm (Plus e1 e2) =
  do
-  (refs1, offs1) <- intExprToIntVar vm e1
+  intvar1 <- intExprToIntVar vrm e1
+  intvar2 <- intExprToIntVar vrm e2
+  unaryPlus intvar1 intvar2 
+intExprToIntVar vrm (Minus e1 (IntConst n)) =
+ do
+  (refs1, offs1) <- intExprToIntVar vrm e1
   return (refs1, offs1-n)
-intExprToIntVar vm (Minus e1 e2) =
+intExprToIntVar vrm (Minus e1 e2) =
  do
-  (refs1, offs1) <- intExprToIntVar vm e1
-  (refs2, offs2) <- intExprToIntVar vm e2
-  --refs <- mergesortl (refs1++refs2)
-  -- TODO: minus in the general case...
-  return undefined
+  intvar1 <- intExprToIntVar vrm e1
+  intvar2 <- intExprToIntVar vrm e2
+  unaryMinus intvar1 intvar2 
 
 
 

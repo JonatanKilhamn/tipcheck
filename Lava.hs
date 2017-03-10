@@ -121,10 +121,10 @@ eql (x:xs) (y:ys) =
 mergesortl :: [Ref] -> L [Ref]
 mergesortl refs =
  do
-  let n = (last $ takeWhile (<= length refs) (iterate (*2) 1)) +1
+  let n = (head $ dropWhile (< ((length refs))) (iterate (*2) 1))
       pairs = oddeven_merge_sort n
       newRefs = refs ++ [ ff | i <- [(length refs)+1 .. n] ]
-  foldM applyCompareSwitch newRefs pairs
+  fmap (take (length refs)) $ foldM applyCompareSwitch newRefs pairs
 
 
 applyCompareSwitch :: [Ref] -> (Int, Int) -> L [Ref]
@@ -157,12 +157,9 @@ oddeven_merge lo hi r =
   then ( oddeven_merge lo hi step ++
          oddeven_merge (lo + r) hi step ++
          [ (i, i + r)
-         | i <- [lo + r .. hi - r]
-           , quot i step == quot (lo+r) step
+         | i <- [lo+r,(lo+r+step)..(hi-r-1)]
          ] )
   else [(lo, lo + r)]
-
-
 
 
      
