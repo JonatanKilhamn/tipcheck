@@ -4,6 +4,7 @@ import TransitionSystem
 import TransitionSystemCircuits
 import Lava
 import Data.Maybe
+import Data.List
 import Circuit
 import Control.Monad
 import qualified Data.Set as S
@@ -146,7 +147,7 @@ test_prop =
    --bCounter sc = fst . fromJust $ lookup ("bcounter") (varRefs sc)
 
 test_c :: Circuit
-test_c = circuit test_prop   
+test_c = circuit test_prop
    
 main :: IO ()
 main = writeCircuit "examples/test3" test_c

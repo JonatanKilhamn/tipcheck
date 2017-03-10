@@ -7,7 +7,6 @@ import Control.Monad
 import Circuit
 import Lava
 import TransitionSystem
-import Control.Monad.State
 import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Exts
@@ -177,7 +176,7 @@ processSystem s =
      validInput <- isOH evRefs
      error1 <- or2 localError (neg validInput)
      finalError <- or2 error1 (globalError state1)
-          
+
      -- output
      let circuit = SynchC { locRefs = zip autNames newLocs
                           , varRefs = zip allVarNames newVars
