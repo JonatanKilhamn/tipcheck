@@ -18,8 +18,7 @@ ordNub l = go S.empty l
     go s (x:xs) = if x `S.member` s then go s xs
                                     else x : go (S.insert x s) xs
 
--- Only boolean state variables so far
--- Only constants for the right-hand sides of guards and updates
+-- Only unary-encoded integer-valued state variables so far
 
 type Event = Name
 type VarName = Name
