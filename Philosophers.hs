@@ -58,7 +58,7 @@ philosopher (p, max) = Aut { autName = "p"++this
                     , guards = takeRightGuards
                     , updates = [AssignInt ("hr"++this) (IntConst 1)]
                     , end = idle
-                    , uncontrollable = True
+                    , uncontrollable = False
                     }
   eat = Trans { start = idle
               , event = "eat"++this
@@ -88,11 +88,15 @@ philosopher (p, max) = Aut { autName = "p"++this
 -- Circuits
 
 testNbr :: Int
-testNbr = 3
+testNbr = 10
 
 
 phils :: Int -> L SynchCircuit
 phils n = processSystem (philSynch n)
+
+testCirc :: L SynchCircuit
+testCirc = phils testNbr
+
 
 phils_prop :: Int -> L Props
 phils_prop n =

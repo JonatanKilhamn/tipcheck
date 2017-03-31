@@ -75,14 +75,14 @@ testAut = Aut { autName = "Aut1"
   t13 = Trans { start = loc1
               , event = "a"
               , guards = []
-              , updates = [AssignInt ("x") (Minus (IntVar "x") (IntVar "y"))]
+              , updates = []
               , end = loc3
               , uncontrollable = False
               }
   t31 = Trans { start = loc3
               , event = "c"
               , guards = []
-              , updates = [AssignInt ("x") (Plus (IntVar "x") (IntConst 3))]
+              , updates = [AssignInt ("x") (Plus (IntVar "x") (IntConst 1))]
               , end = loc1
               , uncontrollable = True
               }
