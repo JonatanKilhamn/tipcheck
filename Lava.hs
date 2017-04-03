@@ -163,6 +163,17 @@ oddeven_merge lo hi r =
 
 
      
+atLeastOneHot :: [Ref] -> L Ref
+atLeastOneHot xs =
+ do (atLeastOne, _) <- isOH' xs
+    return atLeastOne
+
+atMostOneHot :: [Ref] -> L Ref
+atMostOneHot xs =
+ do (_, moreThanOne) <- isOH' xs
+    return (neg moreThanOne)
+
+
 isOH :: [Ref] -> L Ref
 isOH xs =
  do (atLeastOne, moreThanOne) <- isOH' xs
