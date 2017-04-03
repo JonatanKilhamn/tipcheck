@@ -23,8 +23,7 @@ philList nbr = map philosopher [(i, nbr)
                                | i <- [0..nbr-1]]
 
 philSynch :: Int -> Synchronisation
-philSynch = (foldr synchronise emptySynch . philList)
-
+philSynch = foldr synchronise emptySynch . philList
 
 idle, eating :: Location
 idle = "idle"
@@ -154,7 +153,7 @@ write n = writeCircuit "examples/phils2" (phils_c n)
 --------------------------------------------------------------------------------
 -- Step example
 
-
+autSynch = philSynch testNbr
 
 
 -- Output: last_constrs, bads, Circuit
