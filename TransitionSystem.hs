@@ -5,6 +5,7 @@ import Data.Function
 import qualified Data.Map as M
 import Data.List
 import qualified Control.Monad as C
+import Control.Applicative
 import Circuit
 import qualified Data.Set as S
 import Test.QuickCheck
@@ -33,6 +34,10 @@ data IntExpr
  | IntVar VarName
   deriving ( Show, Eq )
 
+iePlus :: IntExpr -> IntExpr -> IntExpr
+iePlus (IntConst x) (IntConst y) = IntConst (x+y)
+iePlus a b = Plus a b
+
 varNames :: IntExpr -> [VarName]
 varNames (IntVar vn) = [vn]
 varNames (Plus ie1 ie2) = union (varNames ie1) (varNames ie2)
@@ -40,6 +45,9 @@ varNames (Minus ie1 ie2) = union (varNames ie1) (varNames ie2)
 varNames _ = []
 
 data Guard = GInt BinaryPred VarName IntExpr
+           | Top
+           | Bottom
+           | GOr [Guard]
   deriving ( Show, Eq )
 
 guardVarName :: Guard -> VarName
@@ -47,8 +55,6 @@ guardVarName (GInt _ x _) = x
 
 guardVarNames :: Guard -> [VarName]
 guardVarNames (GInt _ x exp) = union [x] (varNames exp)
-
-
 
 data BinaryPred
  = Equals
@@ -58,12 +64,14 @@ data BinaryPred
  | GreaterThan
  | GreaterThanEq
   deriving ( Show, Eq )
- 
+
+
+
 
 
 data Update
  = AssignInt VarName IntExpr
-  deriving ( Show )
+  deriving ( Show, Eq )
  
 updateVarName :: Update -> VarName
 updateVarName (AssignInt x _) = x
@@ -93,20 +101,6 @@ isBooleanVariable v = (lower v == 0) && (upper v == 1)
 mkVar :: (Int,Int,Int) -> Variable
 mkVar (l,u,i) = Variable {lower=l,upper=u,initial=i}
 
-{-data Guard
-  = Guard
-  { gvar  :: Var
-  , gval  :: Value
-  }
-  deriving ( Show, Eq )-}
-
-{-data Update
-  = Update
-  { uvar :: Var
-  , uval :: Value
-  }
-  deriving ( Show, Eq )-}
-
 
 data Transition
   = Trans
@@ -117,6 +111,7 @@ data Transition
   , end     :: Location
   , uncontrollable :: Bool
   }
+  deriving ( Eq )
 
 instance Show Transition where
   show trans = unlines $
@@ -218,24 +213,25 @@ synchronise a s =
 
 setDefault :: (VarName, Int) -> Synchronisation -> Synchronisation
 setDefault (name, n) s =
- let v = (allVars s) M.! name in
-  s {allVars = M.adjust (\_ -> v {initial = n}) name (allVars s)
+  s {allVars = M.adjust (\v -> v {initial = n}) name (allVars s)
     }
 
 setRangeMax :: (VarName, Int) -> Synchronisation -> Synchronisation
 setRangeMax (name, n) s =
- let v = (allVars s) M.! name in
-  s {allVars = M.adjust (\_ -> v {upper = n}) name (allVars s)
+  s {allVars = M.adjust (\v -> v {upper = n}) name (allVars s)
     }
 
 setRangeMin :: (VarName, Int) -> Synchronisation -> Synchronisation
 setRangeMin (name, n) s =
- let v = (allVars s) M.! name in
-  s {allVars = M.adjust (\_ -> v {lower = n}) name (allVars s)
+  s {allVars = M.adjust (\v -> v {lower = n}) name (allVars s)
     }
 
 setVars :: [(VarName, Variable)] -> Synchronisation -> Synchronisation
-setVars vs s = foldr (\(name, var) -> \sy -> sy {allVars = M.adjust (\_ -> var) name (allVars sy)}) s vs
+setVars vs s = foldr (\(name, var) -> \sy -> sy {allVars = M.insert name var (allVars sy)}) s vs
+
+
+addUpdate :: Update -> Transition -> Transition
+addUpdate u t = t { updates = union [u] (updates t) }
 
 
 emptySynch :: Synchronisation

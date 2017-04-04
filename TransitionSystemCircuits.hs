@@ -128,7 +128,7 @@ processSystem s =
 
      -- create location state variables
      locFlops <- sequence [ locationOH aut | aut <- automata s ]
-     let locRefs = map fst locFlops
+     --let locRefs = map fst locFlops
 
       -- create state variables
      varFlops <- sequence [ varFlop $ (allVars s) M.! var
@@ -217,13 +217,15 @@ processAutomaton state a =
   -- update controllability
   uncontrFound <- orl [ f | (t, f) <- transAndFireds, uncontrollable t ]
   uncontr' <- or2 uncontrFound (uncontr state)
-      
+
   -- find errors stemming from a blocking automaton
   autError <- isBlocked evm a enableds
   
   -- find errors stemming from an incorrectly set up automaton
-  noLocError <- isOH $ map snd (origVal cloc)
-  
+  oneHotLoc <- isOH $ map snd (latestVal cloc)
+  atLeastOneLoc <- atLeastOneHot $ map snd (latestVal cloc)
+  atMostOneLoc <- atMostOneHot $ map snd (latestVal cloc)
+  let noLocError = tt--oneHotLoc
   
   globalError' <- orl [autError, (neg noLocError), (globalError state)]
   
@@ -313,6 +315,12 @@ checkPredicate psc nm (loc, gs) =
     andl gs
 
 guardToLava :: VarRefMap -> Guard -> L Ref
+guardToLava _ (Top) = return tt
+guardToLava _ (Bottom) = return ff
+guardToLava vrm (GOr gs) =
+ do
+  rs <- mapM (guardToLava vrm) gs
+  orl rs
 guardToLava vrm (GInt pred x exp) =
  do 
   let un = fromJust $ lookup x vrm
