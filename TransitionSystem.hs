@@ -56,6 +56,13 @@ guardVarName (GInt _ x _) = x
 guardVarNames :: Guard -> [VarName]
 guardVarNames (GInt _ x exp) = union [x] (varNames exp)
 
+disjunctionGuard :: [Guard] -> Guard
+disjunctionGuard (g:[]) = g
+disjunctionGuard gs
+ | elem Top gs = Top
+ | otherwise = GOr gs
+
+
 data BinaryPred
  = Equals
  | NEquals

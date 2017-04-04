@@ -147,12 +147,7 @@ applyStrengthening :: Strengthening -> Synchronisation -> Synchronisation
 applyStrengthening str synch = setVars newVars $ synch { automata = newAut }
  where (newAut, newVars) = runWriter $ mapM (strengthenAutomaton str) (automata synch)
  
- 
 
--- TODO: can't do this without having the full information on locations at the
--- strengthening step (i.e. can't generate new varnames before that).
--- Maybe preferrable: keep list of (Name, Location, Pol) and for each one, add
--- guards corresponding to all others only.
 
 strengthenAutomaton :: Strengthening -> Automaton ->
   Writer [(VarName, Variable)] Automaton
@@ -169,16 +164,16 @@ strengthenAutomaton str aut = tell newLocVars >> return withNewLocVars
                              | (autN,locN,g) <- strLocGuards str
                              , autN /= (autName aut) || locN /= (start t)
                              ]
-       addGuards gs t = if (hasNewGuards t)
-                        then (t { guards = gs++(relevantLocGuards t)++(guards t) })
-                        else t
-                                     --combineGuardList $ gs++(guards t) }
-       withNewGuards = aut { transitions = map (addGuards (strVarGuards str)) (transitions aut) }
+       disjunct t = disjunctionGuard ((strVarGuards str)++(relevantLocGuards t))
+       addGuards t = if hasNewGuards t
+                     then t { guards = (disjunct t):(guards t) }
+                     else t
+       withNewGuards = aut { transitions = map addGuards (transitions aut) }
        withNewLocVars = foldr addLocVar withNewGuards locsToAddVarsFor 
 
 addLocVar :: Location -> Automaton -> Automaton
 addLocVar ln a =
- let toLoc = [ t | t <- transitions a, (end t)==ln] -- selfloops don't need updates
+ let toLoc = [ t | t <- transitions a, (end t)==ln]
      fromLoc = [ t | t <- transitions a, (start t)==ln]
      addUpdates t = case (elem t toLoc, elem t fromLoc) of
                          (True, False) -> addUpdate (AssignInt ln (IntConst 1)) t
@@ -207,7 +202,7 @@ invariantToGuards m outrefs =
                      , l
                      , GInt (if (not pol) then NEquals else Equals)
                            (newLocVarName n l)
-                           (IntConst 7)
+                           (IntConst 1)
                      )
                    | (SCLoc n l pol) <- relevantLocEntries
                    ]
