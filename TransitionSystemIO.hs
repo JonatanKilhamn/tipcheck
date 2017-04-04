@@ -12,9 +12,12 @@ import Lava
 import TransitionSystem
 import TransitionSystemCircuits
 import GHC.Enum
+import GHC.Exts
+import Control.Monad.Writer
 
 -- for testing only
-import TestAut3
+--import TestAut3
+import Philosophers
 s :: String
 s = "f0"
 sc :: SynchCircuit
@@ -26,7 +29,7 @@ sc :: SynchCircuit
 
 
 
-maybeHead :: [a] -> Maybe a
+{--maybeHead :: [a] -> Maybe a
 maybeHead [] = Nothing
 maybeHead (x:_) = Just x
 
@@ -39,27 +42,7 @@ getRefName :: Ref -> Maybe Name
 getRefName (Pos n1) = Just n1
 getRefName (Neg n1) = Just n1
 getRefName _ = Nothing
---{--
-findInputEvent :: String -> SynchCircuit -> Maybe Event
-findInputEvent s sc
--- | head s == 'I' = fmap fst $ find (((flip hasRefName) s) . snd) (eventRefs sc)
- | head s == 'I' = invLookup (Pos s) (eventRefs sc)
- | head s == '~' = findInputEvent (tail s) sc
- | otherwise = Just ""
 --}
-
--- Takes a latch as described in tip output, and returns the
--- location it references
-findLocation :: String -> SynchCircuit -> Maybe (Name, Location)
-findLocation s sc
- | head s == 'R' = undefined
- | head s == '~' = findLocation (tail s) sc
- | otherwise = Just undefined
-
-
-findLocInAut :: String -> (IndexedOneHot Location) -> Maybe Location
-findLocInAut s ls = invLookup (Pos s) ls
-
 
 -- Utilities:
 invLookup :: Eq a => a -> [(b,a)] -> Maybe b
@@ -68,7 +51,9 @@ invLookup = flip $ (flip lookup) . (map swap)
 combine :: ([a],[a]) -> [a]
 combine = uncurry (++)
 
-
+isNeg :: Ref -> Bool
+isNeg (Neg x) = True
+isNeg _ = False
 
 
 -- Data types
@@ -109,6 +94,11 @@ isInputGate (I _) = True
 isInputGate (NOut x) = isInputGate x
 isInputGate _ = False
 
+isNegative :: OutputRef -> Bool
+isNegative (I _) = False
+isNegative (R _) = False
+isNegative (NOut x) = not (isNegative x)
+
 
 
 
@@ -118,23 +108,128 @@ isInputGate _ = False
 outputFile :: FilePath
 outputFile = "output.txt"
 
---{--
-readOutputFile :: IO [[OutputRef]]
-readOutputFile =
+
+type Invariant = [OutputRef]
+
+readOutputFile :: FilePath -> IO [Invariant]
+readOutputFile outputFile =
  do
   fileContents <- readFile outputFile
   let fileLines = map (splitOn ",") . lines $ fileContents
       rawRefs = map (map readGate) fileLines
       relevant = filter (any isInputGate) rawRefs
-      outputRefs = map formatOutputLine relevant
-      --formatted = map (map (map formatOutputChar)) relevant
-      --separated = map separateInputAndLatches formatted
-      --nbrs = map maxGateNo formatted
-      
-      --transposed = 
-  return $ outputRefs
---}
+      invariants = map formatOutputLine relevant
+  return invariants
 
+updateSynch :: Synchronisation -> FilePath -> IO Synchronisation
+updateSynch synch fp =
+ do
+  invariants <- readOutputFile fp
+  let m = processSystem synch
+      strs = catMaybes $ map (invariantToGuards m) invariants
+  return $ foldr applyStrengthening synch strs
+      
+
+
+data Strengthening
+  = Strengthen
+  { strLocs   :: [(Name,Location)]
+  , strEvent   :: Event
+  , strVarGuards  :: [Guard]
+  , strLocGuards :: [(Name,Location,Guard)]--the aut and loc which the guard refers to, i.e. doesn't need to be there
+  , newVars :: [VarName]
+  }
+ deriving ( Eq, Show )
+
+
+
+applyStrengthening :: Strengthening -> Synchronisation -> Synchronisation
+applyStrengthening str synch = setVars newVars $ synch { automata = newAut }
+ where (newAut, newVars) = runWriter $ mapM (strengthenAutomaton str) (automata synch)
+ 
+ 
+
+-- TODO: can't do this without having the full information on locations at the
+-- strengthening step (i.e. can't generate new varnames before that).
+-- Maybe preferrable: keep list of (Name, Location, Pol) and for each one, add
+-- guards corresponding to all others only.
+
+strengthenAutomaton :: Strengthening -> Automaton ->
+  Writer [(VarName, Variable)] Automaton
+strengthenAutomaton str aut = tell newLocVars >> return withNewLocVars
+ where starts = [locN | (autN,locN) <- (strLocs str), autN==thisN]
+       thisN = autName aut
+       locsToAddVarsFor = if (any ((/=thisN) . fst) (strLocs str))
+                          then [ln | (a,ln)<- strLocs str, a==thisN]
+                          else []
+       createVariable locN = (newLocVarName thisN locN, newLocVar aut locN)
+       newLocVars = map createVariable locsToAddVarsFor
+       hasNewGuards t = (event t)==(strEvent str) && (start t) `elem` starts
+       relevantLocGuards t = [ g
+                             | (autN,locN,g) <- strLocGuards str
+                             , autN /= (autName aut) || locN /= (start t)
+                             ]
+       addGuards gs t = if (hasNewGuards t)
+                        then (t { guards = gs++(relevantLocGuards t)++(guards t) })
+                        else t
+                                     --combineGuardList $ gs++(guards t) }
+       withNewGuards = aut { transitions = map (addGuards (strVarGuards str)) (transitions aut) }
+       withNewLocVars = foldr addLocVar withNewGuards locsToAddVarsFor 
+
+addLocVar :: Location -> Automaton -> Automaton
+addLocVar ln a =
+ let toLoc = [ t | t <- transitions a, (end t)==ln] -- selfloops don't need updates
+     fromLoc = [ t | t <- transitions a, (start t)==ln]
+     addUpdates t = case (elem t toLoc, elem t fromLoc) of
+                         (True, False) -> addUpdate (AssignInt ln (IntConst 1)) t
+                         (False, True) -> addUpdate (AssignInt ln (IntConst 0)) t
+                         (_,_) -> t
+ in a { transitions = map addUpdates (transitions a) }
+
+invariantToGuards :: L SynchCircuit -> Invariant -> Maybe Strengthening
+invariantToGuards m outrefs = 
+ do
+  let (inputs, nonInputs) = partition isInputGate outrefs
+  activeInput <- find isNegative inputs
+  (SCInp activeEvent) <- (lookupInp m) activeInput
+  let locEntries = [x | Just x <- map (lookupLoc m) nonInputs]
+      varEntries = [x | Just x <- map (lookupVar m) nonInputs]
+      locEntriesByAut = groupWith (\(SCLoc n _ _) -> n) locEntries
+      varEntriesByVar = groupWith (\(SCVar n _ _) -> n) varEntries
+      varGuardsByVar = map createVarGuards varEntriesByVar
+      relevantLocEntries = filter (\(SCLoc _ _ p) -> not p) locEntries
+                           --(map . filter) (\(SCLoc _ _ p) -> not p) locEntriesByAut
+      varGuards' = concat varGuardsByVar
+      (locsToStrengthen,newVars') = unzip [((n,l),newLocVarName n l)
+                                          | (SCLoc n l _) <- relevantLocEntries
+                                          ]
+      locGuards' =  [( n
+                     , l
+                     , GInt (if (not pol) then NEquals else Equals)
+                           (newLocVarName n l)
+                           (IntConst 7)
+                     )
+                   | (SCLoc n l pol) <- relevantLocEntries
+                   ]
+      strth = 
+       Strengthen { strLocs = locsToStrengthen
+                  , strEvent = activeEvent
+                  , strVarGuards = varGuards'
+                  , strLocGuards = locGuards'
+                  -- if (varGuards==[]) then [Bottom] else varGuards
+                  , newVars = newVars'
+                  }
+  return strth
+
+
+newLocVarName :: Name -> Location -> VarName
+newLocVarName n l = n ++ "@" ++ l
+
+newLocVar :: Automaton -> Location -> Variable
+newLocVar a l = Variable { lower = 0
+                         , upper = 1
+                         , initial = if (initialLocation a)==l then 1 else 0
+                         }
 
 
 readGate :: String -> OutputRef
@@ -156,7 +251,7 @@ adjustLatchNbrs (is,ls) = (is,adjustGates (maxGateNo is) ls)
  where
   adjustGates n ss = map (adjustGate n) ss
   adjustGate n (R m) = R (n+m+1)
-  adjustGate n (NOut x) = adjustGate n x
+  adjustGate n (NOut x) = NOut $ adjustGate n x
   adjustGate n x = x
 
 maxGateNo :: [OutputRef] -> Int
@@ -165,63 +260,63 @@ maxGateNo = foldl (flip (max . getNbr)) (-1)
 
 
 
+-- Precondition: the entire list deals with the same variable
+createVarGuards :: [SCVar] -> [Guard]
+createVarGuards scvs = map createVarGuard scvs
+                       -- combineGuardList $ map createVarGuard scvs
 
-outputRefToGuard :: OutputRef -> SynchCircuit -> Guard
-outputRefToGuard = undefined
-
-
-outputVarMap :: SynchCircuit -> OutputRef -> (VarName, Int)
-outputVarMap = undefined
-
-outputLocMap :: SynchCircuit -> OutputRef -> (Automaton, Location)
-outputLocMap = undefined
-
-{--getLookup :: SynchCircuit -> OutputRef -> Maybe SCLookupEntry
-getLookup sc r
- | isInputGate r = fmap SCLInp $ lookup ref inputs
- | otherwise = lookup r latches
- where
-  ref = toRef r
-  inputs = map swap (eventRefs sc)
-  latches = locs ++ vars
-  locs = createLocsEntries sc
-  vars = undefined --createVarsEntries (length locs) sc
-  --}
-
-createLocsEntries :: SynchCircuit -> [(OutputRef, SCLookupEntry)]
-createLocsEntries sc =
- zip (map R [1..])
-     [ SCLLoc name loc
-     | (name, loc) <- undefined]
+createVarGuard :: SCVar -> Guard
+createVarGuard (SCVar vn i pol) =
+ GInt (if (not pol) then LessThan else GreaterThanEq) vn (IntConst i)
 
 
-type SCLookup = OutputRef -> SCLookupEntry
-  
-data SCLookupEntry
-  = SCLInp Event
-  | SCLVar VarName Int
-  | SCLLoc Name Location
+
+--type SCLookup = OutputRef -> SCLookupEntry
+
+data SCInp = SCInp Event
    deriving ( Show )
+data SCVar = SCVar VarName Int Bool
+   deriving ( Show )
+data SCLoc = SCLoc Name Location Bool
+   deriving ( Show )
+   
+
+
+{--
+isSCLVar :: SCLookupEntry -> Bool
+isSCLVar (SCVar _ _) = True
+isSCLVar _ = False
+--}
 
 
 
-getLookup :: L SynchCircuit -> OutputRef -> Maybe SCLookupEntry
-getLookup m r = lookup rname list
+lookupInp :: L SynchCircuit -> OutputRef -> Maybe SCInp
+lookupInp m r = lookup rname inputs
  where
   rname = toName r
   (sc, gs) = run m
-  list = inputs ++ flops
-  inputEntries = map (SCLInp . fst) (eventRefs sc)
+  inputEntries = map (SCInp . fst) (eventRefs sc)
   inputRefs  = [ n | (n, Input) <- gs ]
   inputs = zip inputRefs inputEntries
+
+
+lookupVar :: L SynchCircuit -> OutputRef -> Maybe SCVar
+lookupVar m r =
+ do
+  v <- lookup rname flops
+  case (v) of
+       (SCVar "" 0 False) -> Nothing
+       (_) -> Just v
+ where
+  rname = toName r
+  (sc, gs) = run m
   flopRefs   = [ n | (n, Flop init x) <- gs ]
-  locEntries = [SCLLoc aut loc
-               | (aut, loc) <-
-                  concat [ zip (repeat aut) (map fst locsToAut)
-                         | (aut, locsToAut) <- locRefs sc
-                         ]
+  locEntries = [ SCVar "" 0 False
+               | _ <- concat [ locsToAut
+                             | (_, locsToAut) <- locRefs sc
+                             ]
                ]
-  varEntries = [SCLVar vname val
+  varEntries = [ SCVar vname val (not $ isNegative r)
                | (vname, val, _) <-
                  concat [ zip3 (repeat vname) [(offset+1)..] vrefs
                         | (vname, (vrefs, offset)) <- varRefs sc
@@ -229,5 +324,24 @@ getLookup m r = lookup rname list
                ]
   flopEntries = locEntries ++ varEntries
   flops = zip flopRefs flopEntries
+
+  
+lookupLoc :: L SynchCircuit -> OutputRef -> Maybe SCLoc
+lookupLoc m r = lookup rname list
+ where
+  rname = toName r
+  (sc, gs) = run m
+  list = flops
+  flopRefs   = [ n | (n, Flop init x) <- gs ]
+  locEntries = [SCLoc aut loc (not $ isNegative r)
+               | (aut, loc) <-
+                  concat [ zip (repeat aut) (map fst locsToAut)
+                         | (aut, locsToAut) <- locRefs sc
+                         ]
+               ]
+  flops = zip flopRefs locEntries
+
+
+
 
 
