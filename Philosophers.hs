@@ -19,70 +19,127 @@ import qualified Data.Set as S
 --
 
 philList :: Int -> [Automaton]
-philList nbr = map philosopher [(i, nbr)
-                               | i <- [0..nbr-1]]
+philList nbr = map philosopher [ (i, nbr, 2)
+                               | i <- [0..nbr-1] ]
+
+forkList :: Int -> [Automaton]
+forkList nbr = map fork [ (i,nbr)
+                        | i <- [0..nbr-1] ]
 
 philSynch :: Int -> Synchronisation
-philSynch = foldr synchronise emptySynch . philList
+philSynch nbr = foldr synchronise emptySynch ((philList nbr) ++ (forkList nbr))
 
-idle, eating :: Location
-idle = "idle"
+thinking, eating, ready, lu :: Location
+thinking = "thinking"
 eating = "eating"
+ready = "ready"
+lu = "lu"
 
-philosopher :: (Int,Int) -> Automaton
-philosopher (p, max) = Aut { autName = "p"++this
-                           , locations = S.fromList [idle, eating]
-                           , transitions = ts
-                           , marked = []
-                           , initialLocation = idle
-                           } 
+intermediateLoc :: Int -> Location
+intermediateLoc nbr = ("intermediate" ++ show nbr)
+
+philosopher :: (Int,Int,Int) -> Automaton
+philosopher (p, max, inter) = Aut { autName = "p"++this
+                                  , locations = locs
+                                  , transitions = ts
+                                  , marked = [(thinking, [])]
+                                  , initialLocation = thinking
+                                  } 
  where
+  locs = S.fromList $ [thinking, ready, eating, lu] ++
+                      (map intermediateLoc [1..inter])
   this = show p
-  left = show $ (p-1) `mod` max
   right = show $ (p+1) `mod` max
   ts = [ takeLeft
        , takeRight
-       , eat]
-       {--, putDown
-       ]--}
-  takeLeft = Trans { start = idle
-                   , event = "tl"++this
-                   , guards = takeLeftGuards
-                   , updates = [AssignInt ("hl"++this) (IntConst 1)]
-                   , end = idle
-                   , uncontrollable = False
+       , eat
+       , putDown] ++
+       (map intermediate [1..inter])
+  takeLeft = Trans { start = thinking
+                   , event = "take"++this++"_"++this
+                   , guards = []
+                   , updates = []
+                   , end = lu
+                   , uncontrollable = even p -- even numbered phils are uncontr.
                    }
-  takeRight = Trans { start = idle
-                    , event = "tr"++this
-                    , guards = takeRightGuards
-                    , updates = [AssignInt ("hr"++this) (IntConst 1)]
-                    , end = idle
+  takeRight = Trans { start = intermediateLoc inter
+                    , event = "take"++this++"_"++right
+                    , guards = []
+                    , updates = []
+                    , end = ready
                     , uncontrollable = False
                     }
-  eat = Trans { start = idle
+  eat = Trans { start = ready
               , event = "eat"++this
-              , guards = eatGuards
+              , guards = []
               , updates = []
               , end = eating
-              , uncontrollable = True
+              , uncontrollable = False
               }
   putDown = Trans { start = eating
-                  , event = "pd"++this
+                  , event = "put"++this
                   , guards = []
-                  , updates = putDownUpdates
-                  , end = idle
-                  , uncontrollable = True
+                  , updates = []
+                  , end = thinking
+                  , uncontrollable = False
                   }
-  takeLeftGuards = []--[ GInt Equals ("hl"++this) (IntConst 0)]
-                   --, GInt Equals ("hr"++left) (IntConst 0)]
-  takeRightGuards = []--[ GInt Equals ("hr"++this) (IntConst 0)]
-                    --, GInt Equals ("hl"++right) (IntConst 0)]
-  eatGuards = []--[ GInt Equals ("hl"++this) (IntConst 1)
-              --, GInt Equals ("hr"++this) (IntConst 1)]
-  putDownUpdates = []--[ AssignInt ("hl"++this) (IntConst 0)
-                   --, AssignInt ("hr"++this) (IntConst 0)]
+  intermediate n = Trans { start = case n of
+                                        1 -> lu
+                                        _ -> intermediateLoc (n-1)
+                         , event = "intermediate"++this
+                         , guards = []
+                         , updates = []
+                         , end = intermediateLoc n
+                         , uncontrollable = False
+                         }
 
 
+onTable, inHand :: Location
+onTable = "onTable"
+inHand = "inHand"
+
+fork :: (Int,Int) -> Automaton
+fork (f, max) = Aut { autName = "f"++this
+                    , locations = S.fromList [onTable, inHand]
+                    , transitions = ts
+                    , marked = [(onTable, [])]
+                    , initialLocation = onTable
+                    } 
+ where
+  this = show f
+  left = show $ (f-1) `mod` max
+  ts = [ leftTakes
+       , rightTakes
+       , leftPuts
+       , rightPuts]
+  leftTakes = Trans { start = onTable
+                    , event = "take"++left++"_"++this
+                    , guards = []
+                    , updates = []
+                    , end = inHand
+                    , uncontrollable = False
+                    }
+  rightTakes = Trans { start = onTable
+                     , event = "take"++this++"_"++this
+                     , guards = []
+                     , updates = []
+                     , end = inHand
+                     , uncontrollable = False
+                     }
+  leftPuts = Trans { start = inHand
+                   , event = "put"++left
+                   , guards = []
+                   , updates = []
+                   , end = onTable
+                   , uncontrollable = False
+                   }
+  rightPuts = Trans { start = inHand
+                    , event = "put"++this
+                    , guards = []
+                    , updates = []
+                    , end = onTable
+                    , uncontrollable = False
+                    }
 --------------------------------------------------------------------------------
 -- Circuits
 
@@ -103,24 +160,24 @@ phils_prop n =
      sc <- phils n
      
      -- never two phils holding the same fork
-     held_twice <- sequence
+     {--held_twice <- sequence
                    [ and2 ((holdingLeft sc p)!!0) ((heldByLeft sc p)!!0)
                    | p <- [0..n-1]
                    ]
-     b1 <- orl held_twice
+     b1 <- orl held_twice--}
      
      -- phil_0 never holding both eir forks:
-     b2 <- and2 ((holdingLeft sc 0)!!0) ((heldByLeft sc 1)!!0)
+     --b2 <- and2 ((holdingLeft sc 0)!!0) ((heldByLeft sc 1)!!0)
      
      
-     let b3 = isEating sc 0
+     --let b3 = isEating sc 0
      
      let uc = anyUncontr sc
      
      
      let err = anyError sc
      
-     bad <- and2 b1 (neg err)
+     --bad <- and2 b1 (neg err)
      
      -- each philosopher gets to eat infinitely often
      -- TODO
@@ -128,7 +185,7 @@ phils_prop n =
      -- props
      return $ props
        { always = [neg err]
-       , nevers  = [neg $ uc, b1] {-- FOR NOW: FIRST 'never' MUST ALWAYS BE "ALL TRANSITIONS CONTROLLABLE" (i.e. the negation of "any transition uncontrollable". --}
+       , nevers  = [neg $ uc] {-- FOR NOW: FIRST 'never' MUST ALWAYS BE "ALL TRANSITIONS CONTROLLABLE" (i.e. the negation of "any transition uncontrollable". --}
        --, nevers  = [neg uc, b1] --held_twice --map snd $ boolVarRefs sc
        , finites = []
        }
@@ -136,9 +193,9 @@ phils_prop n =
    this p = show $ p `mod` n
    left p = show $ (p-1) `mod` n
    right p = show $ (p+1) `mod` n
-   holdingLeft sc p = fst . fromJust $ lookup ("hl"++this p) (varRefs sc)
-   heldByLeft sc p = fst . fromJust $ lookup ("hr"++left p) (varRefs sc)
-   isEating sc p = fromJust $ lookup "eating" $ fromJust $ lookup ("p"++this p) (locRefs sc)
+   --holdingLeft sc p = fst . fromJust $ lookup ("hl"++this p) (varRefs sc)
+   --heldByLeft sc p = fst . fromJust $ lookup ("hr"++left p) (varRefs sc)
+   --isEating sc p = fromJust $ lookup "eating" $ fromJust $ lookup ("p"++this p) (locRefs sc)
    
 
 phils_c :: Int -> Circuit
