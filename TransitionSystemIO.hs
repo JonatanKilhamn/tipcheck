@@ -165,7 +165,7 @@ strengthenAutomaton str aut = tell newLocVars >> return withNewLocVars
                              , autN /= (autName aut) || locN /= (start t)
                              ]
        disjunct t = disjunctionGuard ((strVarGuards str)++(relevantLocGuards t))
-       addGuards t = if hasNewGuards t
+       addGuards t = if (hasNewGuards t) && not (uncontrollable t)
                      then t { guards = (disjunct t):(guards t) }
                      else t
        withNewGuards = aut { transitions = map addGuards (transitions aut) }
