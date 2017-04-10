@@ -87,7 +87,7 @@ data PartialSynchCircuit
   , varMap :: VarMap
   , eventMap   :: EventMap
   , globalError :: Ref
-  , uncontr :: Ref
+  , contr :: Ref
   }
  deriving ( Show )
 
@@ -106,7 +106,7 @@ data SynchCircuit
   , eventRefs   :: EventRefMap
   , markedRefs :: MarkedRefMap
   , anyError :: Ref
-  , anyUncontr :: Ref
+  , anyContr :: Ref
   }
  deriving ( Show )
 
@@ -115,9 +115,9 @@ processSystem :: Synchronisation -> L SynchCircuit
 processSystem s =
    do
    
-     -- uncontr flop currently UNUSED
-     -- the first latch should store the uncontrollability state
-     --uncontrFlop <- namedFlop "uncont" (Just False)
+     -- contr flop currently UNUSED
+     -- the first latch should store the controllability state
+     --contrFlop <- namedFlop "cont" (Just False)
     
      -- input processing
      evRefs <- sequence [ input | x <- allEvents s]
@@ -143,14 +143,14 @@ processSystem s =
                      , varMap = vs
                      , eventMap   = evm
                      , globalError = ff
-                     , uncontr = ff--(fst uncontrFlop)
+                     , contr = ff--(fst contrFlop)
                      }
      
      -- process each automaton
      state1 <- foldM processAutomaton state (automata s)
 
-     -- set updated uncontrollability flop -- uncontr flop UNUSED
-     --_ <- (snd uncontrFlop) (uncontr state1)
+     -- set updated controllability flop -- contr flop UNUSED
+     --_ <- (snd contrFlop) (contr state1)
 
      -- set the updated location values
      let newLocs = map (latestVal . snd) (locMap state1)
@@ -183,7 +183,7 @@ processSystem s =
                           , eventRefs = evm
                           , markedRefs = marked
                           , anyError = finalError
-                          , anyUncontr = (uncontr state1)
+                          , anyContr = (contr state1)
                           }
      return circuit
 
@@ -215,8 +215,8 @@ processAutomaton state a =
   vm' <- foldM varUpdates vm transAndFireds
   
   -- update controllability
-  uncontrFound <- orl [ f | (t, f) <- transAndFireds, uncontrollable t ]
-  uncontr' <- or2 uncontrFound (uncontr state)
+  contrFound <- orl [ f | (t, f) <- transAndFireds, not (uncontrollable t) ]
+  contr' <- or2 contrFound (contr state)
 
   -- find errors stemming from a blocking automaton
   autError <- isBlocked evm a enableds
@@ -232,7 +232,7 @@ processAutomaton state a =
   return state { locMap = auts'
                , varMap = vm'
                , globalError = globalError'
-               , uncontr = uncontr'
+               , contr = contr'
                }
 
 isEnabledTransition :: CLocation -> VarMap -> Transition ->

@@ -139,7 +139,7 @@ test_prop =
      -- props
      return $ props
        { always = [neg err]
-       , nevers  = [neg $ anyUncontr sc, bad] {-- FOR NOW: FIRST 'never' MUST ALWAYS BE "ALL TRANSITIONS CONTROLLABLE" (i.e. the negation of "any transition uncontrollable". --}
+       , nevers  = [anyContr sc, bad] {-- FOR NOW: FIRST 'never' MUST ALWAYS BE "ANY TRANSITIONS CONTROLLABLE" --}
        , finites = []
        }
  where

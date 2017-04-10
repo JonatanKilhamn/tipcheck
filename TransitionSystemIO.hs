@@ -17,7 +17,7 @@ import Control.Monad.Writer
 
 -- for testing only
 --import TestAut3
-import Philosophers
+import PhilosophersOld
 s :: String
 s = "f0"
 sc :: SynchCircuit

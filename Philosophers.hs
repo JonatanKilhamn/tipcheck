@@ -172,7 +172,6 @@ phils_prop n =
      
      --let b3 = isEating sc 0
      
-     let uc = anyUncontr sc
      
      
      let err = anyError sc
@@ -185,7 +184,7 @@ phils_prop n =
      -- props
      return $ props
        { always = [neg err]
-       , nevers  = [neg $ uc] {-- FOR NOW: FIRST 'never' MUST ALWAYS BE "ALL TRANSITIONS CONTROLLABLE" (i.e. the negation of "any transition uncontrollable". --}
+       , nevers  = [anyContr sc] {-- FOR NOW: FIRST 'never' MUST ALWAYS BE "ANY TRANSITIONS CONTROLLABLE" --}
        --, nevers  = [neg uc, b1] --held_twice --map snd $ boolVarRefs sc
        , finites = []
        }
