@@ -116,15 +116,14 @@ data Transition
   , guards  :: [Guard]
   , updates :: [Update]
   , end     :: Location
-  , uncontrollable :: Bool
+  --, uncontrollable :: Bool
   }
   deriving ( Eq )
 
 instance Show Transition where
   show trans = unlines $
     [ (show $ event trans) ++ ": " ++
-      (show $ start trans) ++ "-->" ++ (show $ end trans) ++
-      (if (uncontrollable trans) then " (UNCONTR)" else "")
+      (show $ start trans) ++ "-->" ++ (show $ end trans)
     ] ++
     [ "GUARDS"
     | not (null (guards trans))
@@ -153,7 +152,8 @@ data Automaton
   , locations :: S.Set Location
   , transitions :: [Transition]
   , marked :: [Predicate]
-  , initialLocation:: Location
+  , initialLocation :: Location
+  , uncontrollable :: [Event]
   }
 
 instance Show Automaton where
@@ -172,6 +172,8 @@ instance Show Automaton where
     | (l,gs) <- marked aut
     ] ++
     [ "INITIAL: " ++ (show $ initialLocation aut)
+    ] ++
+    [ "UNCONTROLLABLE: " ++ (show $ uncontrollable aut)
     ]
 
 
@@ -192,11 +194,17 @@ instance Show Synchronisation where
     [ "AUT. No "++ (show i) ++ " " ++ (show a)
     | (a,i) <- zip (automata synch) [1..]
     ] ++
-    [ "VARIABLES: "
+    [ "ALL VARIABLES IN SYNCH: "
     | not (null (allVars synch))
     ] ++
     [ "  " ++ name ++ ": " ++ (show var)
     | (name, var) <- M.assocs $ allVars synch
+    ] ++
+    [ "UNCONTROLLABLE VARS: "
+    | not (null (getAllUncontrollable synch))
+    ] ++
+    [ "  " ++ name
+    | (name) <- getAllUncontrollable synch
     ]
 
 events :: Automaton -> [Event]
@@ -208,6 +216,16 @@ getAllVars a = M.fromList $ zip varNames (repeat unknownVar)
  where varNames = ordNub $ concat $ map varNames' (transitions a)
        varNames' t = concat $ (map guardVarNames (guards t)) ++ (map updateVarNames (updates t))
        unknownVar = Variable {lower = 0, upper = 3, initial = 0}
+
+setUncontrollable :: (Event, Bool) -> Automaton -> Automaton
+setUncontrollable (e,b) aut =
+ if b
+ then aut { uncontrollable =
+             if e `elem` events aut
+             then union [e] (uncontrollable aut)
+             else uncontrollable aut
+          }
+ else aut { uncontrollable = filter (/=e) (uncontrollable aut) }
 
 
 synchronise :: Automaton -> Synchronisation -> Synchronisation
@@ -254,10 +272,15 @@ setEventUncontrollable e s =
  s {automata = updatedAuts}
   where
      updatedAuts = map updateAut (automata s)
-     updateAut a = a {transitions = map updateTrans (transitions a)}
-     updateTrans t = if event t == e
-                     then t {uncontrollable = True}
-                     else t
+     updateAut = setUncontrollable (e,True)
+
+isEventUncontrollable :: Event -> Synchronisation -> Bool
+isEventUncontrollable e =
+ (elem e) . getAllUncontrollable
+
+getAllUncontrollable :: Synchronisation -> [Event]
+getAllUncontrollable =
+ (foldr union []) . ((map uncontrollable) . automata)
 
 
 oneHotBool :: (Int, Int) -> [Bool]

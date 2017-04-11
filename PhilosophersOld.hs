@@ -35,6 +35,7 @@ philosopher (p, max) = Aut { autName = "p"++this
                            , transitions = ts
                            , marked = []
                            , initialLocation = idle
+                           , uncontrollable = [event eat]
                            } 
  where
   this = show p
@@ -50,14 +51,14 @@ philosopher (p, max) = Aut { autName = "p"++this
                    , guards = takeLeftGuards
                    , updates = [AssignInt ("hl"++this) (IntConst 1)]
                    , end = idle
-                   , uncontrollable = False
+                   --, uncontrollable = False
                    }
   takeRight = Trans { start = idle
                     , event = "tr"++this
                     , guards = takeRightGuards
                     , updates = [AssignInt ("hr"++this) (IntConst 1)]
                     , end = idle
-                    , uncontrollable = False
+                    --, uncontrollable = False
                     }
   
   eat = Trans { start = idle
@@ -65,14 +66,14 @@ philosopher (p, max) = Aut { autName = "p"++this
               , guards = eatGuards
               , updates = []
               , end = eating
-              , uncontrollable = True
+              --, uncontrollable = True
               }
   putDown = Trans { start = eating
                   , event = "pd"++this
                   , guards = []
                   , updates = putDownUpdates
                   , end = idle
-                  , uncontrollable = True
+                  --, uncontrollable = True
                   }
   takeLeftGuards = []--[ GInt Equals ("hl"++this) (IntConst 0)]
                    --, GInt Equals ("hr"++left) (IntConst 0)]

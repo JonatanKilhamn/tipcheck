@@ -18,7 +18,9 @@ readWmodFile fp =
        (Nothing) -> return emptySynch
 
 main :: IO Synchronisation
-main = readWmodFile "Examples/simple_selfloop.wmod"
+main = readWmodFile
+       "Examples/HVC2014/EDP5_10.wmod"
+       --"Examples/simple_selfloop.wmod"
        --"Examples/cat_mouse.wmod"
 
 debug :: IO String
@@ -90,6 +92,7 @@ parseAutomaton e
               , transitions = transitions -- :: [Transition]
               , marked = acceptingPredicates
               , initialLocation = initLoc -- :: Location
+              , uncontrollable = []
               }
 
 parseLocations :: Element -> Maybe (S.Set Location, Location)
@@ -160,7 +163,7 @@ parseTransition e
                   , guards = gs
                   , updates = uds
                   , end = to
-                  , uncontrollable = False
+                  --, uncontrollable = False
                   }
           | name <- names ]
 
@@ -232,6 +235,10 @@ exprToGuard _ = Nothing
 exprToUpdate :: Expr -> Maybe Update
 exprToUpdate (BO OpAssign (Var x) e) =
  liftM (AssignInt x) (toIntExpr e)
+exprToUpdate (BO OpIncr (Var x) e) =
+ liftM (AssignInt x) (liftM (Plus (IntVar x)) (toIntExpr e))
+exprToUpdate (BO OpDecr (Var x) e) =
+ liftM (AssignInt x) (liftM (Minus (IntVar x)) (toIntExpr e))
 exprToUpdate _ = Nothing
 
 toIntExpr :: Expr -> Maybe IntExpr
@@ -332,6 +339,8 @@ data BinaryOp
  | OpMinus
  | OpAnd
  | OpRange
+ | OpIncr
+ | OpDecr
   deriving ( Show, Eq )
 
 toPred :: BinaryOp -> Maybe BinaryPred
@@ -355,6 +364,8 @@ parseBinaryOperator e
         (Just "+")    -> return OpPlus
         (Just "-")    -> return OpMinus
         (Just "..")   -> return OpRange
+        (Just "+=")   -> return OpIncr
+        (Just "-=")   -> return OpDecr        
         (Nothing)     -> Nothing
         
 

@@ -17,11 +17,11 @@ import Control.Monad.Writer
 
 -- for testing only
 --import TestAut3
-import PhilosophersOld
+import PhilosophersParsed
 s :: String
 s = "f0"
-sc :: SynchCircuit
-(sc,_) = run testCirc
+--sc :: SynchCircuit
+--(sc,_) = run testCirc
 
 
 
@@ -151,7 +151,10 @@ applyStrengthening str synch = setVars newVars $ synch { automata = newAut }
 
 strengthenAutomaton :: Strengthening -> Automaton ->
   Writer [(VarName, Variable)] Automaton
-strengthenAutomaton str aut = tell newLocVars >> return withNewLocVars
+strengthenAutomaton str aut =
+ if (strEvent str) `elem` (uncontrollable aut)
+ then error "Cannot strengthen uncontrollable event!"
+ else tell newLocVars >> return withNewLocVars
  where starts = [locN | (autN,locN) <- (strLocs str), autN==thisN]
        thisN = autName aut
        locsToAddVarsFor = if (any ((/=thisN) . fst) (strLocs str))
@@ -165,7 +168,7 @@ strengthenAutomaton str aut = tell newLocVars >> return withNewLocVars
                              , autN /= (autName aut) || locN /= (start t)
                              ]
        disjunct t = disjunctionGuard ((strVarGuards str)++(relevantLocGuards t))
-       addGuards t = if (hasNewGuards t) && not (uncontrollable t)
+       addGuards t = if (hasNewGuards t)
                      then t { guards = (disjunct t):(guards t) }
                      else t
        withNewGuards = aut { transitions = map addGuards (transitions aut) }

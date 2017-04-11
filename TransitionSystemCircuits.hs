@@ -87,7 +87,7 @@ data PartialSynchCircuit
   , varMap :: VarMap
   , eventMap   :: EventMap
   , globalError :: Ref
-  , contr :: Ref
+  --, contr :: Ref
   }
  deriving ( Show )
 
@@ -143,7 +143,7 @@ processSystem s =
                      , varMap = vs
                      , eventMap   = evm
                      , globalError = ff
-                     , contr = ff--(fst contrFlop)
+                     --, contr = ff--(fst contrFlop)
                      }
      
      -- process each automaton
@@ -177,13 +177,16 @@ processSystem s =
      error1 <- or2 localError (neg validInput)
      finalError <- or2 error1 (globalError state1)
 
+     let contrFlops = [eref | (e, eref) <- evm, not $ isEventUncontrollable e s]
+     anyContr' <- orl contrFlops
+
      -- output
      let circuit = SynchC { locRefs = zip autNames newLocs
                           , varRefs = zip allVarNames newVars
                           , eventRefs = evm
                           , markedRefs = marked
                           , anyError = finalError
-                          , anyContr = (contr state1)
+                          , anyContr = anyContr'--(contr state1)
                           }
      return circuit
 
@@ -215,8 +218,8 @@ processAutomaton state a =
   vm' <- foldM varUpdates vm transAndFireds
   
   -- update controllability
-  contrFound <- orl [ f | (t, f) <- transAndFireds, not (uncontrollable t) ]
-  contr' <- or2 contrFound (contr state)
+  --contrFound <- orl [ f | (t, f) <- transAndFireds, not (uncontrollable t) ]
+  --contr' <- or2 contrFound (contr state)
 
   -- find errors stemming from a blocking automaton
   autError <- isBlocked evm a enableds
@@ -232,7 +235,7 @@ processAutomaton state a =
   return state { locMap = auts'
                , varMap = vm'
                , globalError = globalError'
-               , contr = contr'
+               --, contr = contr'
                }
 
 isEnabledTransition :: CLocation -> VarMap -> Transition ->

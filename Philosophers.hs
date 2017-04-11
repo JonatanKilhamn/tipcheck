@@ -44,6 +44,10 @@ philosopher (p, max, inter) = Aut { autName = "p"++this
                                   , transitions = ts
                                   , marked = [(thinking, [])]
                                   , initialLocation = thinking
+                                  , uncontrollable =
+                                    if even p
+                                    then [event takeLeft]
+                                    else []
                                   } 
  where
   locs = S.fromList $ [thinking, ready, eating, lu] ++
@@ -60,28 +64,28 @@ philosopher (p, max, inter) = Aut { autName = "p"++this
                    , guards = []
                    , updates = []
                    , end = lu
-                   , uncontrollable = even p -- even numbered phils are uncontr.
+                   --, uncontrollable = even p -- even numbered phils are uncontr.
                    }
   takeRight = Trans { start = intermediateLoc inter
                     , event = "take"++this++"_"++right
                     , guards = []
                     , updates = []
                     , end = ready
-                    , uncontrollable = False
+                    --, uncontrollable = False
                     }
   eat = Trans { start = ready
               , event = "eat"++this
               , guards = []
               , updates = []
               , end = eating
-              , uncontrollable = False
+              --, uncontrollable = False
               }
   putDown = Trans { start = eating
                   , event = "put"++this
                   , guards = []
                   , updates = []
                   , end = thinking
-                  , uncontrollable = False
+                  --, uncontrollable = False
                   }
   intermediate n = Trans { start = case n of
                                         1 -> lu
@@ -90,7 +94,7 @@ philosopher (p, max, inter) = Aut { autName = "p"++this
                          , guards = []
                          , updates = []
                          , end = intermediateLoc n
-                         , uncontrollable = False
+                         --, uncontrollable = False
                          }
 
 
@@ -104,6 +108,7 @@ fork (f, max) = Aut { autName = "f"++this
                     , transitions = ts
                     , marked = [(onTable, [])]
                     , initialLocation = onTable
+                    , uncontrollable = []
                     } 
  where
   this = show f
@@ -117,28 +122,28 @@ fork (f, max) = Aut { autName = "f"++this
                     , guards = []
                     , updates = []
                     , end = inHand
-                    , uncontrollable = False
+                    --, uncontrollable = False
                     }
   rightTakes = Trans { start = onTable
                      , event = "take"++this++"_"++this
                      , guards = []
                      , updates = []
                      , end = inHand
-                     , uncontrollable = False
+                     --, uncontrollable = False
                      }
   leftPuts = Trans { start = inHand
                    , event = "put"++left
                    , guards = []
                    , updates = []
                    , end = onTable
-                   , uncontrollable = False
+                   --, uncontrollable = False
                    }
   rightPuts = Trans { start = inHand
                     , event = "put"++this
                     , guards = []
                     , updates = []
                     , end = onTable
-                    , uncontrollable = False
+                    --, uncontrollable = False
                     }
 --------------------------------------------------------------------------------
 -- Circuits
