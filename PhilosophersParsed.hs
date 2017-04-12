@@ -57,15 +57,6 @@ phils_prop l_sc =
      sc <- l_sc
      
      let evenPhils = filter even [1..nbrPhils]
-         canTakeLefts = 
-          [ isThinking sc p
-          | p <- evenPhils
-          ]
-         affectedForks = evenPhils
-         isHeldLefts =
-          [ isHeld sc f
-          | f <- affectedForks
-          ]
      
      uncontr_blocks <- sequence
       [ and2 (isHeld sc p) (isThinking sc p)
