@@ -188,6 +188,16 @@ isOH' (x:xs) =
     anyAnd <- or2 newAnd prevAnd
     return (newXor, anyAnd)
 
+isUnary :: [Ref] -> L Ref
+isUnary [] = return tt
+isUnary (x:[]) = return tt
+isUnary (x:y:rs) =
+ do z <- impl2 y x
+    zs <- isUnary (y:rs)
+    and2 z zs
+
+
+
 flop0, flop1, flopX :: L (Ref, Ref -> L ())
 flop0 = flop (Just False)
 flop1 = flop (Just True)
