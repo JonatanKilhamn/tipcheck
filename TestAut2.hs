@@ -33,6 +33,7 @@ testAutA = Aut { autName = "Aut1"
                , transitions = ts
                , marked = []
                , initialLocation = locA
+               , uncontrollable = ["a"]
                } 
  where
   ts = [ right1
@@ -45,28 +46,24 @@ testAutA = Aut { autName = "Aut1"
                  , guards = []
                  , updates = []
                  , end = locB
-                 , uncontrollable = True
                 }
   loop1 = Trans { start = locA
                 , event = "b"
                 , guards = []
                 , updates = []
                 , end = locD
-                , uncontrollable = False
                 }
   right2 = Trans { start = locB
                  , event = "b"
                  , guards = []
                  , updates = []
                  , end = locC
-                 , uncontrollable = True
                 }
   right3 = Trans { start = locC
                  , event = "c"
                  , guards = []
                  , updates = []
                  , end = locD
-                 , uncontrollable = False
                 }
   locA = "A"
   locB = "B"
@@ -113,11 +110,6 @@ main = writeCircuit "examples/test1" test_c
 --------------------------------------------------------------------------------
 -- Step example
 
-
-
-
-oneHotBool :: (Int, Int) -> [Bool]
-oneHotBool (val, max) = [ if (i == val) then True else False | i <- [1..max] ]
 
 
 -- Output: last_constrs, bads, Circuit
