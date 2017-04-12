@@ -200,7 +200,7 @@ instance Show Synchronisation where
     [ "  " ++ name ++ ": " ++ (show var)
     | (name, var) <- M.assocs $ allVars synch
     ] ++
-    [ "UNCONTROLLABLE VARS: "
+    [ "UNCONTROLLABLE EVENTS: "
     | not (null (getAllUncontrollable synch))
     ] ++
     [ "  " ++ name
