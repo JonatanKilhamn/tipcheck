@@ -32,7 +32,13 @@ data IntExpr
  | Plus IntExpr IntExpr
  | Minus IntExpr IntExpr
  | IntVar VarName
-  deriving ( Show, Eq )
+  deriving ( Eq )
+
+instance Show IntExpr where
+ show (IntConst i) = show i
+ show (Plus ie1 ie2) = "("++show ie1++" + "++show ie2++")"
+ show (Minus ie1 ie2) = "("++show ie1++" - "++show ie2++")"
+ show (IntVar x) = show x
 
 iePlus :: IntExpr -> IntExpr -> IntExpr
 iePlus (IntConst x) (IntConst y) = IntConst (x+y)
@@ -48,7 +54,13 @@ data Guard = GInt BinaryPred VarName IntExpr
            | Top
            | Bottom
            | GOr [Guard]
-  deriving ( Show, Eq )
+  deriving ( Eq )
+
+instance Show Guard where
+ show (GInt bp vn ie) = (show vn) ++ (show bp) ++ (show ie)
+ show Top = "True"
+ show Bottom = "False"
+ show (GOr gs) = "ANY "++show gs
 
 guardVarName :: Guard -> VarName
 guardVarName (GInt _ x _) = x
@@ -60,7 +72,7 @@ disjunctionGuard :: [Guard] -> Guard
 disjunctionGuard (g:[]) = g
 disjunctionGuard gs
  | elem Top gs = Top
- | otherwise = GOr gs
+ | otherwise = GOr (filter (/= Bottom) gs)
 
 
 data BinaryPred
@@ -70,8 +82,15 @@ data BinaryPred
  | LessThanEq
  | GreaterThan
  | GreaterThanEq
-  deriving ( Show, Eq )
+  deriving ( Eq )
 
+instance Show BinaryPred where
+ show Equals = "=="
+ show NEquals = "/="
+ show LessThan = "<"
+ show LessThanEq = "<="
+ show GreaterThan = ">"
+ show GreaterThanEq = ">="
 
 
 
