@@ -51,7 +51,7 @@ testAutA = Aut { autName = "Aut1"
                 , event = "b"
                 , guards = []
                 , updates = []
-                , end = locD
+                , end = locA
                 }
   right2 = Trans { start = locB
                  , event = "b"

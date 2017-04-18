@@ -26,7 +26,7 @@ autList nbr = map testAut [(i, nbr)
 -}
 
 xlimit :: Int
-xlimit = 5
+xlimit = 3
 
 autSynch :: Synchronisation
 autSynch = setVars vars sys
@@ -40,6 +40,7 @@ testAut = Aut { autName = "Aut1"
               , transitions = ts
               , marked = []
               , initialLocation = loc0
+              , uncontrollable = ["alpha"]
               } 
  where
   ts = [ t02
@@ -56,35 +57,30 @@ testAut = Aut { autName = "Aut1"
               , guards = []
               , updates = [AssignInt ("y") (IntConst 2)]
               , end = loc2
-              , uncontrollable = True
               }
   t01 = Trans { start = loc0
               , event = "b"
               , guards = []
               , updates = [AssignInt ("y") (IntConst 1)]
               , end = loc1
-              , uncontrollable = True
               }
   t23 = Trans { start = loc2
               , event = "b"
               , guards = []
               , updates = []
               , end = loc3
-              , uncontrollable = False
               }
   t13 = Trans { start = loc1
               , event = "a"
               , guards = []
               , updates = []
               , end = loc3
-              , uncontrollable = False
               }
   t31 = Trans { start = loc3
               , event = "c"
               , guards = []
               , updates = [AssignInt ("x") (Plus (IntVar "x") (IntConst 1))]
               , end = loc1
-              , uncontrollable = True
               }
   t35 = Trans { start = loc3
               , event = "alpha"
@@ -92,7 +88,6 @@ testAut = Aut { autName = "Aut1"
                          , GInt GreaterThan ("x") (IntConst xlimit)]
               , updates = []
               , end = loc5
-              , uncontrollable = True
               }
   t34 = Trans { start = loc3
               , event = "alpha"
@@ -100,14 +95,12 @@ testAut = Aut { autName = "Aut1"
                          , GInt LessThanEq ("x") (IntConst xlimit)]
               , updates = []
               , end = loc4
-              , uncontrollable = True
               }
   t44 = Trans { start = loc4
               , event = "omega"
               , guards = []
               , updates = []
               , end = loc4
-              , uncontrollable = True
               }
   loc0 = "l0"
   loc1 = "l1"
