@@ -228,7 +228,7 @@ processAutomaton state a =
   oneHotLoc <- isOH $ map snd (latestVal cloc)
   atLeastOneLoc <- atLeastOneHot $ map snd (latestVal cloc)
   atMostOneLoc <- atMostOneHot $ map snd (latestVal cloc)
-  let noLocError = tt--oneHotLoc
+  let noLocError = tt --oneHotLoc --tt
   
   globalError' <- orl [autError, (neg noLocError), (globalError state)]
   
@@ -471,7 +471,8 @@ updateIntVar (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
         underFlowRef = neg $ newVal `refAt` ((head $ range lastVal) - 1)
     overFlowError <- and2 shouldUpdate overFlowRef
     underFlowError <- and2 shouldUpdate underFlowRef
-    hasError'' <- orl [overFlowError, underFlowError, hasError']
+    invalidError <- fmap neg $ isUnary nextRefs
+    hasError'' <- orl [overFlowError, underFlowError, hasError'] -- , invalidError]
     return ((nextRefs, offset), hasUpdated', hasError'')
 
 

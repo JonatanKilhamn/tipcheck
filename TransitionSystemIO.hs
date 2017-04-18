@@ -18,6 +18,8 @@ import Control.Monad.Writer
 -- for testing only
 --import TestAut3
 import PhilosophersParsed
+import CatMouseParsed
+import TestAut2
 s :: String
 s = "f0"
 --sc :: SynchCircuit
@@ -163,16 +165,20 @@ strengthenAutomaton str aut =
        createVariable locN = (newLocVarName thisN locN, newLocVar aut locN)
        newLocVars = map createVariable locsToAddVarsFor
        hasNewGuards t = (event t)==(strEvent str) && (start t) `elem` starts
-       relevantLocGuards t = [ g
-                             | (autN,locN,g) <- strLocGuards str
-                             , autN /= (autName aut) || locN /= (start t)
-                             ]
+       relevantLocGuards t = map (newLocGuard t) (strLocGuards str)
+       newLocGuard t (autN, locN, g)
+        | autN /= (autName aut) = g
+        | locN == (start t) = if (denotesLocFalse g) then Bottom else Top
+        | otherwise = if (denotesLocFalse g) then Top else Bottom
+       denotesLocFalse (GInt NEquals _ _) = True
+       denotesLocFalse _ = False
        disjunct t = disjunctionGuard ((strVarGuards str)++(relevantLocGuards t))
        addGuards t = if (hasNewGuards t)
                      then t { guards = (disjunct t):(guards t) }
                      else t
        withNewGuards = aut { transitions = map addGuards (transitions aut) }
        withNewLocVars = foldr addLocVar withNewGuards locsToAddVarsFor 
+
 
 addLocVar :: Location -> Automaton -> Automaton
 addLocVar ln a =
