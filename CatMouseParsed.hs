@@ -22,19 +22,45 @@ import qualified Data.Set as S
 -- (1,5) (3,3) (5,5) (7,7)
 
 nbrFloors :: Int
-nbrFloors = 7
+nbrFloors = 3
 
 nbrCats :: Int
-nbrCats = 7
+nbrCats = 3
 
-fileNameI :: Int -> Int -> FilePath
-fileNameI i j = "Examples/HVC2014/CMT" ++ (show i) ++ "_"++ (show j) ++ ".wmod"
+fileNameI :: Int -> FilePath
+fileNameI i = "Examples/HVC2014/CMT" ++ (show i) ++ "_"++ (show i) ++ ".wmod"
 
 fileName :: FilePath
-fileName = fileNameI nbrFloors nbrCats
+fileName = fileNameI nbrFloors
 
 cmtSynch :: IO Synchronisation
-cmtSynch = readWmodFile fileName
+cmtSynch = 
+ do
+  synch <- readWmodFile fileName
+  let varList = concat $ [ [ ("c_"++(show floor)++(show room)
+                             , Variable { lower = 0
+                                        , upper = nbrCats
+                                        , initial = if (floor==1)&&(room==1)
+                                                    then nbrCats
+                                                    else 0
+                                        }
+                             )
+                           ] ++
+                           [ ("m_"++(show floor)++(show room)
+                             , Variable { lower = 0
+                                        , upper = nbrCats
+                                        , initial = if (floor==nbrFloors)&&(room==5)
+                                                    then nbrCats
+                                                    else 0
+                                        }
+                             )
+                           ]
+                         | floor <- [1..nbrFloors]
+                         , room <- [1..5]
+                         ]    
+      synch2 = setVars varList synch
+  return synch2
+  
        --"Examples/HVC2014/EDP5_10.wmod"
        --"Examples/simple_selfloop.wmod"
        --"Examples/cat_mouse.wmod"
@@ -81,7 +107,8 @@ main =
  do
   sc <- cmt_sc
   let circ = cmt_c sc
-  writeCircuit ("examples/cmt"++ (show nbrFloors) ++ "_" ++ (show nbrCats)) circ
+  writeCircuit --("examples/cmt"++ (show nbrFloors) ++ "_x") circ
+   ("examples/cmt"++ (show nbrFloors) ++ "_" ++ (show nbrCats)) circ
   return circ
 
 --------------------------------------------------------------------------------
