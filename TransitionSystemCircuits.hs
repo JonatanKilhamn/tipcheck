@@ -17,6 +17,11 @@ import GHC.Exts
 --------------------
 
 
+-- Settings:
+
+useVarUnaryCheck :: Bool
+useVarUnaryCheck = False
+
 
 type OneHot = [Ref]
 type IndexedOneHot k = [(k, Ref)]
@@ -471,8 +476,12 @@ updateIntVar (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
         underFlowRef = neg $ newVal `refAt` ((head $ range lastVal) - 1)
     overFlowError <- and2 shouldUpdate overFlowRef
     underFlowError <- and2 shouldUpdate underFlowRef
-    invalidError <- fmap neg $ isUnary nextRefs
-    hasError'' <- orl [overFlowError, underFlowError, hasError'] -- , invalidError]
+    invalidError <- fmap neg $ impl2 (oldRefs!!2) (oldRefs!!1) --isUnary nextRefs
+    --invalidError2 <- fmap neg $ impl2 (last nextRefs) (nextRefs!!2)
+    --invalidError <- and2 invalidError1 invalidError2
+    hasError'' <- orl $ 
+      [overFlowError, underFlowError, hasError'] ++
+      if useVarUnaryCheck then [invalidError] else []
     return ((nextRefs, offset), hasUpdated', hasError'')
 
 
