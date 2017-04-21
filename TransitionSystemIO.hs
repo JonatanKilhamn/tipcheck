@@ -19,7 +19,7 @@ import Control.Monad.Writer
 --import TestAut3
 import PhilosophersParsed
 import CatMouseParsed
-import TestAut2
+import TestAut3
 s :: String
 s = "f0"
 --sc :: SynchCircuit
@@ -173,8 +173,11 @@ strengthenAutomaton str aut =
        denotesLocFalse (GInt NEquals _ _) = True
        denotesLocFalse _ = False
        disjunct t = disjunctionGuard ((strVarGuards str)++(relevantLocGuards t))
+       newGuards t = if (disjunct t) == Top
+                     then guards t
+                     else (disjunct t):(guards t)
        addGuards t = if (hasNewGuards t)
-                     then t { guards = (disjunct t):(guards t) }
+                     then t { guards = newGuards t }
                      else t
        withNewGuards = aut { transitions = map addGuards (transitions aut) }
        withNewLocVars = foldr addLocVar withNewGuards locsToAddVarsFor 
