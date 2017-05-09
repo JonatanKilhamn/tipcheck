@@ -25,7 +25,7 @@ nbrPhils :: Int
 nbrPhils = 5
 
 nbrSteps :: Int
-nbrSteps = 1000
+nbrSteps = 10
 
 fileNameI :: Int -> Int -> FilePath
 fileNameI i j = "Examples/HVC2014/EDP" ++ (show i) ++ "_"++ (show j) ++ ".wmod"
@@ -35,10 +35,31 @@ fileName = fileNameI nbrPhils nbrSteps
 
 philSynch :: IO Synchronisation
 philSynch = readWmodFile fileName
-       --"Examples/HVC2014/EDP5_10.wmod"
-       --"Examples/simple_selfloop.wmod"
-       --"Examples/cat_mouse.wmod"
-
+{-- do
+  synch <- readWmodFile fileName
+  let varList = concat $ [ [ ("c_"++(show floor)++(show room)
+                             , Variable { lower = 0
+                                        , upper = nbrCats
+                                        , initial = if (floor==1)&&(room==1)
+                                                    then nbrCats
+                                                    else 0
+                                        }
+                             )
+                           ] ++
+                           [ ("m_"++(show floor)++(show room)
+                             , Variable { lower = 0
+                                        , upper = nbrCats
+                                        , initial = if (floor==nbrFloors)&&(room==5)
+                                                    then nbrCats
+                                                    else 0
+                                        }
+                             )
+                           ]
+                         | floor <- [1..nbrFloors]
+                         , room <- [1..5]
+                         ]    
+      synch2 = setVars varList synch
+  return synch2--}
 
 --------------------------------------------------------------------------------
 -- Circuits
@@ -64,6 +85,7 @@ phils_prop l_sc =
       ]
 
      bad <- orl uncontr_blocks
+     --let bad = uncontrBlock sc
      
      let err = anyError sc
      

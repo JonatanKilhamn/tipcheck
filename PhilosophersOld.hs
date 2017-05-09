@@ -89,7 +89,7 @@ philosopher (p, max) = Aut { autName = "p"++this
 -- Circuits
 
 testNbr :: Int
-testNbr = 2
+testNbr = 70
 
 
 phils :: Int -> L SynchCircuit

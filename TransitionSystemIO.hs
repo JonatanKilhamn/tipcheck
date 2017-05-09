@@ -185,11 +185,12 @@ strengthenAutomaton str aut =
 
 addLocVar :: Location -> Automaton -> Automaton
 addLocVar ln a =
- let toLoc = [ t | t <- transitions a, (end t)==ln]
+ let vn = newLocVarName (autName a) ln
+     toLoc = [ t | t <- transitions a, (end t)==ln]
      fromLoc = [ t | t <- transitions a, (start t)==ln]
      addUpdates t = case (elem t toLoc, elem t fromLoc) of
-                         (True, False) -> addUpdate (AssignInt ln (IntConst 1)) t
-                         (False, True) -> addUpdate (AssignInt ln (IntConst 0)) t
+                         (True, False) -> addUpdate (AssignInt vn (IntConst 1)) t
+                         (False, True) -> addUpdate (AssignInt vn (IntConst 0)) t
                          (_,_) -> t
  in a { transitions = map addUpdates (transitions a) }
 

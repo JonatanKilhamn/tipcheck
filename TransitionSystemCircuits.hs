@@ -179,7 +179,14 @@ processSystem s =
      localError <- or2 locErr varErr
      
      validInput <- isOH evRefs
-     error1 <- or2 localError (neg validInput)
+
+     validVars1 <- sequence $ map isUnary (map fst $ map fst varFlops)
+     --validOutput <- andl validVars
+     validVars <- andl validVars1
+     
+     error1 <- orl $ [localError, (neg validInput)] ++
+             if useVarUnaryCheck then [neg validVars] else []
+     
      finalError <- or2 error1 (globalError state1)
 
      let contrFlops = [eref | (e, eref) <- evm, not $ isEventUncontrollable e s]
