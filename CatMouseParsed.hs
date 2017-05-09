@@ -22,16 +22,17 @@ import qualified Data.Set as S
 -- (1,5) (3,3) (5,5) (7,7)
 
 nbrFloors :: Int
-nbrFloors = 3
+nbrFloors = 1
 
 nbrCats :: Int
-nbrCats = 3
+nbrCats = 5
 
 fileNameI :: Int -> FilePath
 fileNameI i = "Examples/HVC2014/CMT" ++ (show i) ++ "_"++ (show i) ++ ".wmod"
 
 fileName :: FilePath
 fileName = fileNameI nbrFloors
+
 
 cmtSynch :: IO Synchronisation
 cmtSynch = 
@@ -59,7 +60,11 @@ cmtSynch =
                          , room <- [1..5]
                          ]    
       synch2 = setVars varList synch
-  return synch2
+  return synch2 { automata = map changeAut $ automata synch2 }
+ where changeAut aut = aut { transitions = map changeTrans $ transitions aut }
+       changeTrans trans = trans { guards = map changeGuard $ guards trans }
+       changeGuard (GInt LessThan vn ie) = GInt LessThan vn (IntConst nbrCats)
+       changeGuard g = g
   
        --"Examples/HVC2014/EDP5_10.wmod"
        --"Examples/simple_selfloop.wmod"
