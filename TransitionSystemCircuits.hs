@@ -179,13 +179,8 @@ processSystem s =
      localError <- or2 locErr varErr
      
      validInput <- isOH evRefs
-
-     validVars1 <- sequence $ map isUnary (map fst $ map fst varFlops)
-     --validOutput <- andl validVars
-     validVars <- andl validVars1
      
-     error1 <- orl $ [localError, (neg validInput)] ++
-             if useVarUnaryCheck then [neg validVars] else []
+     error1 <- orl $ [localError, (neg validInput)]
      
      finalError <- or2 error1 (globalError state1)
 
@@ -240,7 +235,7 @@ processAutomaton state a =
   oneHotLoc <- isOH $ map snd (latestVal cloc)
   atLeastOneLoc <- atLeastOneHot $ map snd (latestVal cloc)
   atMostOneLoc <- atMostOneHot $ map snd (latestVal cloc)
-  let noLocError = tt --oneHotLoc --tt
+  let noLocError = tt --oneHotLoc
   
   globalError' <- orl [autError, (neg noLocError), (globalError state)]
   
@@ -483,12 +478,9 @@ updateIntVar (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
         underFlowRef = neg $ newVal `refAt` ((head $ range lastVal) - 1)
     overFlowError <- and2 shouldUpdate overFlowRef
     underFlowError <- and2 shouldUpdate underFlowRef
-    invalidError <- fmap neg $ impl2 (oldRefs!!2) (oldRefs!!1) --isUnary nextRefs
-    --invalidError2 <- fmap neg $ impl2 (last nextRefs) (nextRefs!!2)
-    --invalidError <- and2 invalidError1 invalidError2
+    --invalidError <- fmap neg $ isUnary nextRefs
     hasError'' <- orl $ 
-      [overFlowError, underFlowError, hasError'] ++
-      if useVarUnaryCheck then [invalidError] else []
+      [overFlowError, underFlowError, hasError']
     return ((nextRefs, offset), hasUpdated', hasError'')
 
 
