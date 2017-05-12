@@ -173,6 +173,12 @@ atMostOneHot xs =
  do (_, moreThanOne) <- isOH' xs
     return (neg moreThanOne)
 
+allOrNothing :: [Ref] -> L Ref
+allOrNothing xs =
+ do all <- andl xs
+    nothing <- andl (map neg xs)
+    or2 all nothing
+
 
 isOH :: [Ref] -> L Ref
 isOH xs =

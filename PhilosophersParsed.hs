@@ -84,8 +84,8 @@ phils_prop l_sc =
       | p <- evenPhils
       ]
 
-     bad <- orl uncontr_blocks
-     --let bad = uncontrBlock sc
+     --bad <- orl uncontr_blocks
+     let bad = uncontrBlock sc
      
      let err = anyError sc
      

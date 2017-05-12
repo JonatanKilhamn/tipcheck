@@ -92,7 +92,7 @@ data PartialSynchCircuit
   , varMap :: VarMap
   , eventMap   :: EventMap
   , globalError :: Ref
-  --, contr :: Ref
+  , uncontrMap :: EventMap
   }
  deriving ( Show )
 
@@ -112,6 +112,7 @@ data SynchCircuit
   , markedRefs :: MarkedRefMap
   , anyError :: Ref
   , anyContr :: Ref
+  , uncontrBlock :: Ref
   }
  deriving ( Show )
 
@@ -148,7 +149,7 @@ processSystem s =
                      , varMap = vs
                      , eventMap   = evm
                      , globalError = ff
-                     --, contr = ff--(fst contrFlop)
+                     , uncontrMap = []
                      }
      
      -- process each automaton
@@ -173,6 +174,12 @@ processSystem s =
                                   (automata s)
      let marked = zip autNames markedRefs
      
+     -- compute whether an automaton is blocking an uncontrollable trans
+     let eventEnableds = groupWith fst (uncontrMap state1)
+     noBlockeds <- sequence $ map allOrNothing (fmap (map snd) eventEnableds)
+     uncontrBlock' <- fmap neg $ andl noBlockeds
+     
+     
      -- compute errors
      locErr <- orl (map (hasError . snd) (locMap state1))
      varErr <- orl (map (hasError . snd) (varMap state1))
@@ -194,6 +201,7 @@ processSystem s =
                           , markedRefs = marked
                           , anyError = finalError
                           , anyContr = anyContr'--(contr state1)
+                          , uncontrBlock = uncontrBlock'
                           }
      return circuit
 
@@ -216,6 +224,13 @@ processAutomaton state a =
   fireds <- sequence $ zipWith and2 (map getEventRef trans) enableds
   
   let transAndFireds = zip trans fireds
+  
+  let uncontrEnableds = filter ((flip elem (uncontrollable a)) . fst) (zip (map event trans) enableds)
+    {-[ pair
+    | pair <- zip (map event trans) enableds
+    , ev `elem` (uncontrollable a)
+    ]-}
+  let uncontrMap' = (uncontrMap state) ++ uncontrEnableds
   
   -- update locations
   cloc' <- foldM locationUpdate cloc transAndFireds
@@ -242,7 +257,7 @@ processAutomaton state a =
   return state { locMap = auts'
                , varMap = vm'
                , globalError = globalError'
-               --, contr = contr'
+               , uncontrMap = uncontrMap'
                }
 
 isEnabledTransition :: CLocation -> VarMap -> Transition ->
