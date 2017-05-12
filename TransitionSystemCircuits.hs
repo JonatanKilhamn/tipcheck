@@ -19,8 +19,10 @@ import GHC.Exts
 
 -- Settings:
 
-useVarUnaryCheck :: Bool
-useVarUnaryCheck = False
+checkUnaryValid, checkOHValid :: Bool
+checkUnaryValid = False
+checkOHValid = False
+
 
 
 type OneHot = [Ref]
@@ -40,14 +42,8 @@ refAt :: IntVariable -> Int -> Ref
          (_, True) -> ff
          (_,_) -> refs !! (i - offset - 1)
 
-isValidIV :: IntVariable -> Bool
-isValidIV un@(refs,offset) =
- and [ okay (refAt un i) (refAt un (i+1))
-     | i <- range un ]
-  where okay a b = case (a,b) of
-                        (Bool False, Bool False) -> True
-                        (Bool False, _) -> False
-                        (_, _) -> True
+isValidIV :: IntVariable -> L Ref
+isValidIV = isUnary . fst
 
 range :: IntVariable -> [Int]
 range (rs, o) = [o..(o + length rs)]
@@ -65,6 +61,7 @@ data CState k = CS { origVal   :: k
                    , latestVal :: k
                    , hasUpdated :: Ref
                    , hasError  :: Ref
+                   , validEncoding :: Ref
                    }
   deriving ( Show )
 
@@ -73,7 +70,22 @@ newState a = CS { origVal = a
                 , latestVal = a
                 , hasUpdated = ff
                 , hasError = ff
+                , validEncoding = tt
                 }
+                
+newCLoc :: IndexedOneHot Location -> L (CLocation)
+newCLoc a = do
+ let ns = newState a
+ valid <- if checkOHValid then (isOH (map snd a)) else (return tt)
+ return ns { validEncoding = valid }
+
+newCVariable :: IntVariable -> L (CVariable)
+newCVariable a = do
+ let ns = newState a
+ valid <- if checkUnaryValid then (isValidIV a) else (return tt)
+ return ns { validEncoding = valid }
+
+                
 
 type CLocation = CState (IndexedOneHot Location)
 type CVariable = CState IntVariable
@@ -141,9 +153,11 @@ processSystem s =
                           ]
      
      -- create big clumsy object to pass around
-     let auts = [ (name, (newState loc))
-                | ((loc, _), name) <- zip locFlops autNames ]
-         vs = zip allVarNames (map (newState . fst) varFlops)
+     let auts' = [ (name, (newCLoc loc))
+                 | ((loc, _), name) <- zip locFlops autNames ]
+     auts <- sequenceSnd auts'
+     allVarStates <- sequence (map (newCVariable . fst) varFlops)
+     let vs = zip allVarNames allVarStates
          state = PSC { locMap = auts
                      , varMap = vs
                      , eventMap   = evm
@@ -210,8 +224,8 @@ processAutomaton state a =
       cloc = fromJust $ lookup an auts
       getEventRef t = fromJust $ lookup (event t) evm
 
-  -- create refs signifying which transitions are enabled
-  enableds <- sequence $ map (isEnabledTransition cloc vm) trans
+  -- create refs signifying which transitions are enabled and have valid variables
+  (enableds, valids) <- (unzipM . sequence) $ map (isEnabledTransition cloc vm) trans
   -- refs signifying which transitions are fired
   fireds <- sequence $ zipWith and2 (map getEventRef trans) enableds
   
@@ -228,6 +242,11 @@ processAutomaton state a =
   --contrFound <- orl [ f | (t, f) <- transAndFireds, not (uncontrollable t) ]
   --contr' <- or2 contrFound (contr state)
 
+  -- find errors stemming from variables which are not unary
+  firedsAndInvalids <- sequence $ zipWith and2 fireds (map neg valids)
+  invalidEncodingError <- orl firedsAndInvalids
+
+
   -- find errors stemming from a blocking automaton
   autError <- isBlocked evm a enableds
   
@@ -237,7 +256,11 @@ processAutomaton state a =
   atMostOneLoc <- atMostOneHot $ map snd (latestVal cloc)
   let noLocError = tt --oneHotLoc
   
-  globalError' <- orl [autError, (neg noLocError), (globalError state)]
+  globalError' <- orl [ autError
+                      , (neg noLocError)
+                      , (globalError state)
+                      , invalidEncodingError
+                      ]
   
   return state { locMap = auts'
                , varMap = vm'
@@ -245,17 +268,21 @@ processAutomaton state a =
                --, contr = contr'
                }
 
+-- Output is (isCleared, isValid) where "isValid" is true if all variables in
+-- guard have correct unary encoding
 isEnabledTransition :: CLocation -> VarMap -> Transition ->
-  L Ref
+  L (Ref, Ref)
 isEnabledTransition cloc vm t =
  do
   let startLocRef = fromJust $ lookup (start t) (origVal cloc)
   
   -- check all the guards
   let vrm = zip (map fst vm) (map (origVal . snd) vm)
-  gs <- sequence $ map (guardToLava vrm) (guards t)
-  clearedGuards <- andl gs
-  and2 startLocRef clearedGuards
+  (gs,valids) <- (unzipM . sequence) $ map (guardToLava vrm) (guards t)
+  clearedAllGuards <- andl gs
+  allValid <- andl valids
+  isCleared <- and2 startLocRef clearedAllGuards
+  return (isCleared,allValid)
 
 locationUpdate :: CLocation -> (Transition, Ref) -> L CLocation
 locationUpdate cloc (t, fired) =
@@ -279,6 +306,7 @@ locationUpdate cloc (t, fired) =
             , latestVal = newLoc'' 
             , hasUpdated = hasUpdated'
             , hasError = hasError'
+            , validEncoding = validEncoding cloc
             }
 
 
@@ -321,21 +349,26 @@ checkPredicate psc nm (loc, gs) =
         rightLoc = locRefs `at` loc
         vm = varMap psc
         vrm = zip (map fst vm) (map (latestVal . snd) vm)
-    gs <- sequence $ map (guardToLava vrm) gs
+    (gs, _) <- (unzipM . sequence) $ map (guardToLava vrm) gs
     andl gs
 
-guardToLava :: VarRefMap -> Guard -> L Ref
-guardToLava _ (Top) = return tt
-guardToLava _ (Bottom) = return ff
+-- Returns (enabled,valid); see isEnabledTransition
+guardToLava :: VarRefMap -> Guard -> L (Ref, Ref)
+guardToLava _ (Top) = return (tt, tt)
+guardToLava _ (Bottom) = return (ff, tt)
 guardToLava vrm (GOr gs) =
  do
-  rs <- mapM (guardToLava vrm) gs
-  orl rs
+  (passeds,valids) <- fmap unzip $ mapM (guardToLava vrm) gs
+  passed <- orl passeds
+  valid <- if checkUnaryValid then (andl valids) else (return tt)
+  return (passed, valid)
 guardToLava vrm (GInt pred x exp) =
  do 
-  let un = fromJust $ lookup x vrm
-  iv <- intExprToIntVar vrm exp
-  compareIntVariables pred un iv
+  let iv = fromJust $ lookup x vrm
+  expv <- intExprToIntVar vrm exp
+  passed <- compareIntVariables pred iv expv
+  valid <- if checkUnaryValid then (isValidIV iv) else (return tt)
+  return (passed, valid)
 
 
 
@@ -385,6 +418,7 @@ updateToLava shouldUpdate vm (AssignInt varName expr) =
                        , latestVal = lastVal'
                        , hasUpdated = hasUpdated'
                        , hasError = hasError'
+                       , validEncoding = validEncoding var
                        }
 
   return $ replaceAt (varName, newVarState) vm
@@ -478,9 +512,10 @@ updateIntVar (lastVal, hasUpdated, hasError, shouldUpdate, newVal) =
         underFlowRef = neg $ newVal `refAt` ((head $ range lastVal) - 1)
     overFlowError <- and2 shouldUpdate overFlowRef
     underFlowError <- and2 shouldUpdate underFlowRef
-    --invalidError <- fmap neg $ isUnary nextRefs
+    invalidError <- (fmap neg $ isUnary nextRefs) >>= (and2 shouldUpdate)
+    
     hasError'' <- orl $ 
-      [overFlowError, underFlowError, hasError']
+      [overFlowError, underFlowError, hasError', invalidError]
     return ((nextRefs, offset), hasUpdated', hasError'')
 
 
@@ -531,3 +566,23 @@ constantOneHot (val, max)
     [ if (i==val) then tt else ff | i <- [1..max] ]
   | otherwise = error "oneHotFlops: index out of bounds"
 
+
+
+
+
+
+sequenceSnd :: (Monad m) => [(a, m b)] -> m [(a, b)]
+sequenceSnd pairs = do
+ let (xs, mys) = unzip pairs
+ ys <- sequence mys
+ return $ zip xs ys
+
+sequencePairs :: (Monad m) => [(m a, m b)] -> m [(a, b)]
+sequencePairs pairs = do
+ let (mxs, mys) = unzip pairs
+ xs <- sequence mxs
+ ys <- sequence mys
+ return $ zip xs ys
+
+unzipM :: (Functor f) => f [(a,b)] -> f ([a],[b])
+unzipM = fmap unzip
