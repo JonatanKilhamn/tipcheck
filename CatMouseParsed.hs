@@ -19,7 +19,9 @@ import qualified Data.Set as S
 -- Defining the automata
 --
 
--- (1,5) (3,3) (5,5) (7,7)
+-- Previously used values are (1,1) (1,5) (3,3) (5,5) (7,7)
+-- Possible values of nbrFloors are 1,3,5,7
+-- nbrCats should be able to take any value > 0
 
 nbrFloors :: Int
 nbrFloors = 1
@@ -66,10 +68,6 @@ cmtSynch =
        changeGuard (GInt LessThan vn ie) = GInt LessThan vn (IntConst nbrCats)
        changeGuard g = g
   
-       --"Examples/HVC2014/EDP5_10.wmod"
-       --"Examples/simple_selfloop.wmod"
-       --"Examples/cat_mouse.wmod"
-
 
 --------------------------------------------------------------------------------
 -- Circuits
@@ -90,10 +88,7 @@ cmt_prop l_sc =
      bad <- orl (failureStates sc)
      
      let err = anyError sc
-     
-     -- each philosopher gets to eat infinitely often
-     -- TODO
-     
+          
      -- props
      return $ props
        { always = [neg err]
@@ -113,38 +108,7 @@ main =
   sc <- cmt_sc
   let circ = cmt_c sc
   writeCircuit --("examples/cmt"++ (show nbrFloors) ++ "_x") circ
-   ("examples/cmt"++ (show nbrFloors) ++ "_" ++ (show nbrCats)) circ
+   ("Examples/cmt"++ (show nbrFloors) ++ "_" ++ (show nbrCats)) circ
   return circ
 
---------------------------------------------------------------------------------
--- Step example
-
-
--- Output: last_constrs, bads, Circuit
-{--stepscmt :: Int -> [[Bool]] -> (Bool,[Bool],Circuit)
-stepscmt n inputs = foldl foldableSteps (False,[],circ) inputs
- where
-  circ = cmt_c n
-  size = length $ flops circ
-  foldableSteps (_,_,c) ins = step c (none size) ins
---}
-
-none :: Int -> [Bool]
-none = flip replicate False
-
-{--tl1, tr1, eat1, pd1, tl0, tr0, eat0, pd0 :: [Bool]
-tl1 = eventInput "tl1" (cmtynch testNbr)
-tr1 = eventInput "tr1" (cmtynch testNbr)
-eat1 = eventInput "eat1" (cmtynch testNbr)
-pd1 = eventInput "pd1" (cmtynch testNbr)
-tl0 = eventInput "tl0" (cmtynch testNbr)
-tr0 = eventInput "tr0" (cmtynch testNbr)
-eat0 = eventInput "eat0" (cmtynch testNbr)
-pd0 = eventInput "pd0" (cmtynch testNbr)
---}
-
-fstpair3 :: (a,b,c) -> (a,b)
-fstpair3 (a,b,c) = (a,b)
-
---step c (replicate 8 False) (replicate 8 False)
 

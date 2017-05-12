@@ -65,35 +65,3 @@ main =
   writeCircuit ("examples/pme") circ
   return circ
 
---------------------------------------------------------------------------------
--- Step example
-
-
--- Output: last_constrs, bads, Circuit
-{--stepsPhils :: Int -> [[Bool]] -> (Bool,[Bool],Circuit)
-stepsPhils n inputs = foldl foldableSteps (False,[],circ) inputs
- where
-  circ = phils_c n
-  size = length $ flops circ
-  foldableSteps (_,_,c) ins = step c (none size) ins
---}
-
-none :: Int -> [Bool]
-none = flip replicate False
-
-{--tl1, tr1, eat1, pd1, tl0, tr0, eat0, pd0 :: [Bool]
-tl1 = eventInput "tl1" (philSynch testNbr)
-tr1 = eventInput "tr1" (philSynch testNbr)
-eat1 = eventInput "eat1" (philSynch testNbr)
-pd1 = eventInput "pd1" (philSynch testNbr)
-tl0 = eventInput "tl0" (philSynch testNbr)
-tr0 = eventInput "tr0" (philSynch testNbr)
-eat0 = eventInput "eat0" (philSynch testNbr)
-pd0 = eventInput "pd0" (philSynch testNbr)
---}
-
-fstpair3 :: (a,b,c) -> (a,b)
-fstpair3 (a,b,c) = (a,b)
-
---step c (replicate 8 False) (replicate 8 False)
-

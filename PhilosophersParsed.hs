@@ -17,13 +17,12 @@ import qualified Data.Set as S
 
 --------------------------------------------------------------------------------
 -- Defining the automata
---
 
--- 10, 50, 100, 200, 500, 1000
 
 nbrPhils :: Int
 nbrPhils = 5
 
+-- possible values of nbrSteps: 10, 50, 100, 200, 500, 1000
 nbrSteps :: Int
 nbrSteps = 10
 
@@ -35,31 +34,6 @@ fileName = fileNameI nbrPhils nbrSteps
 
 philSynch :: IO Synchronisation
 philSynch = readWmodFile fileName
-{-- do
-  synch <- readWmodFile fileName
-  let varList = concat $ [ [ ("c_"++(show floor)++(show room)
-                             , Variable { lower = 0
-                                        , upper = nbrCats
-                                        , initial = if (floor==1)&&(room==1)
-                                                    then nbrCats
-                                                    else 0
-                                        }
-                             )
-                           ] ++
-                           [ ("m_"++(show floor)++(show room)
-                             , Variable { lower = 0
-                                        , upper = nbrCats
-                                        , initial = if (floor==nbrFloors)&&(room==5)
-                                                    then nbrCats
-                                                    else 0
-                                        }
-                             )
-                           ]
-                         | floor <- [1..nbrFloors]
-                         , room <- [1..5]
-                         ]    
-      synch2 = setVars varList synch
-  return synch2--}
 
 --------------------------------------------------------------------------------
 -- Circuits
@@ -84,15 +58,9 @@ phils_prop l_sc =
       | p <- evenPhils
       ]
 
-     --bad <- orl uncontr_blocks
      let bad = uncontrBlock sc
      
      let err = anyError sc
-     
-     --bad <- and2 b1 (neg err)
-     
-     -- each philosopher gets to eat infinitely often
-     -- TODO
      
      -- props
      return $ props
@@ -115,38 +83,6 @@ main =
  do
   sc <- phils_sc
   let circ = phils_c sc
-  writeCircuit ("examples/phils"++ (show nbrPhils) ++ "_"++ (show nbrSteps)) circ
+  writeCircuit ("Examples/phils"++ (show nbrPhils) ++ "_"++ (show nbrSteps)) circ
   return circ
-
---------------------------------------------------------------------------------
--- Step example
-
-
--- Output: last_constrs, bads, Circuit
-{--stepsPhils :: Int -> [[Bool]] -> (Bool,[Bool],Circuit)
-stepsPhils n inputs = foldl foldableSteps (False,[],circ) inputs
- where
-  circ = phils_c n
-  size = length $ flops circ
-  foldableSteps (_,_,c) ins = step c (none size) ins
---}
-
-none :: Int -> [Bool]
-none = flip replicate False
-
-{--tl1, tr1, eat1, pd1, tl0, tr0, eat0, pd0 :: [Bool]
-tl1 = eventInput "tl1" (philSynch testNbr)
-tr1 = eventInput "tr1" (philSynch testNbr)
-eat1 = eventInput "eat1" (philSynch testNbr)
-pd1 = eventInput "pd1" (philSynch testNbr)
-tl0 = eventInput "tl0" (philSynch testNbr)
-tr0 = eventInput "tr0" (philSynch testNbr)
-eat0 = eventInput "eat0" (philSynch testNbr)
-pd0 = eventInput "pd0" (philSynch testNbr)
---}
-
-fstpair3 :: (a,b,c) -> (a,b)
-fstpair3 (a,b,c) = (a,b)
-
---step c (replicate 8 False) (replicate 8 False)
 
