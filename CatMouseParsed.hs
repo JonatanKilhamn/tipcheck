@@ -28,7 +28,7 @@ nbrCats :: Int
 nbrCats = 5
 
 fileNameI :: Int -> FilePath
-fileNameI i = "Examples/HVC2014/CMT" ++ (show i) ++ "_"++ (show i) ++ ".wmod"
+fileNameI i = "Examples/FMCAD2017/CMT" ++ (show i) ++ "_"++ (show i) ++ ".wmod"
 
 fileName :: FilePath
 fileName = fileNameI nbrFloors

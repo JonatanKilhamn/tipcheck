@@ -28,7 +28,7 @@ nbrSteps :: Int
 nbrSteps = 10
 
 fileNameI :: Int -> Int -> FilePath
-fileNameI i j = "Examples/HVC2014/EDP" ++ (show i) ++ "_"++ (show j) ++ ".wmod"
+fileNameI i j = "Examples/FMCAD2017/EDP" ++ (show i) ++ "_"++ (show j) ++ ".wmod"
 
 fileName :: FilePath
 fileName = fileNameI nbrPhils nbrSteps
