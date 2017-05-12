@@ -19,6 +19,7 @@ import Control.Monad.Writer
 --import TestAut3
 import PhilosophersParsed
 import CatMouseParsed
+import PMEParsed
 import TestAut3
 s :: String
 s = "f0"

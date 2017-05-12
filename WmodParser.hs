@@ -227,6 +227,17 @@ flattenContent = foldr expandAndAdd []
 
 
 exprToGuard :: Expr -> Maybe Guard
+exprToGuard (UO OpNot e1) = do
+ g1 <- exprToGuard e1
+ return $ GNot g1
+exprToGuard (BO OpAnd e1 e2) = do
+ g1 <- exprToGuard e1
+ g2 <- exprToGuard e2
+ return $ GAnd [g1, g2]
+exprToGuard (BO OpOr e1 e2) = do
+ g1 <- exprToGuard e1
+ g2 <- exprToGuard e2
+ return $ GOr [g1, g2]
 exprToGuard (BO op (Var x) e) =
  liftM2 (\ie -> \p -> GInt p x ie) (toIntExpr e) (toPred op)
 exprToGuard _ = Nothing
@@ -309,7 +320,10 @@ parseExpr e
 
  | getElemName e == "UnaryExpression" =
   do
-   return undefined
+   op <- parseUnaryOperator e
+   let args = mapMaybe getElem (elContent e)
+   arg1 <- parseExpr $ args!!0
+   return $ UO op arg1
  | getElemName e == "SimpleIdentifier" =
   do
    var <- getAttribute "Name" e
@@ -325,11 +339,13 @@ data Expr
   = Const Int
   | Var VarName
   | BO BinaryOp Expr Expr
+  | UO UnaryOp Expr
   deriving ( Show )
 
 
 data BinaryOp
  = OpEquals
+ | OpNEquals
  | OpLessThan
  | OpLessThanEq
  | OpGreaterThan
@@ -338,37 +354,52 @@ data BinaryOp
  | OpPlus
  | OpMinus
  | OpAnd
+ | OpOr
  | OpRange
  | OpIncr
  | OpDecr
+  deriving ( Show, Eq )
+  
+data UnaryOp
+ = OpNot
   deriving ( Show, Eq )
 
 toPred :: BinaryOp -> Maybe BinaryPred
 toPred op = lookup op opToPred
  where opToPred = [ (OpEquals, Equals)
+                  , (OpNEquals, NEquals)
                   , (OpLessThan, LessThan)
                   , (OpLessThanEq, LessThanEq)
                   , (OpGreaterThan, GreaterThan)
                   , (OpGreaterThanEq, GreaterThanEq) ]
 
--- TODO: does the format ever use AND?
 parseBinaryOperator :: Element -> Maybe BinaryOp
 parseBinaryOperator e
  = case (getAttribute "Operator" e) of
         (Just "==")   -> return OpEquals
+        (Just "!=")   -> return OpNEquals
         (Just "=")    -> return OpAssign
         (Just "<") -> return OpLessThan
         (Just ">") -> return OpGreaterThan
         (Just "&le;") -> return OpLessThanEq
         (Just "&ge;") -> return OpGreaterThanEq
+        (Just "&lt;") -> return OpLessThan
+        (Just "&gt;") -> return OpGreaterThan
         (Just "+")    -> return OpPlus
         (Just "-")    -> return OpMinus
         (Just "..")   -> return OpRange
         (Just "+=")   -> return OpIncr
-        (Just "-=")   -> return OpDecr        
+        (Just "-=")   -> return OpDecr
+        (Just "|") -> return OpOr
+        (Just "&") -> return OpAnd
         (Nothing)     -> Nothing
         
-
+parseUnaryOperator :: Element -> Maybe UnaryOp
+parseUnaryOperator e
+ = case (getAttribute "Operator" e) of
+        (Just "!")   -> return OpNot
+        (Nothing)     -> Nothing
+        
 
 
 

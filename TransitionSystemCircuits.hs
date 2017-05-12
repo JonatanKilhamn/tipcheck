@@ -346,6 +346,13 @@ guardToLava vrm (GOr gs) =
  do
   rs <- mapM (guardToLava vrm) gs
   orl rs
+guardToLava vrm (GAnd gs) =
+ do
+  rs <- mapM (guardToLava vrm) gs
+  andl rs
+guardToLava vrm (GNot g) =
+ do
+  fmap neg $ guardToLava vrm g
 guardToLava vrm (GInt pred x exp) =
  do 
   let un = fromJust $ lookup x vrm

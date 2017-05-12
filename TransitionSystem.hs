@@ -54,6 +54,8 @@ data Guard = GInt BinaryPred VarName IntExpr
            | Top
            | Bottom
            | GOr [Guard]
+           | GAnd [Guard]
+           | GNot Guard
   deriving ( Eq )
 
 instance Show Guard where
@@ -61,12 +63,21 @@ instance Show Guard where
  show Top = "True"
  show Bottom = "False"
  show (GOr gs) = "ANY "++show gs
+ show (GAnd gs) = "ALL "++show gs
+ show (GNot g) = "~"++show g
 
 guardVarName :: Guard -> VarName
 guardVarName (GInt _ x _) = x
+guardVarName (GNot g) = guardVarName g
 
 guardVarNames :: Guard -> [VarName]
 guardVarNames (GInt _ x exp) = union [x] (varNames exp)
+guardVarNames (GNot g) = guardVarNames g
+guardVarNames (GAnd gs) = foldl union [] (map guardVarNames gs)
+guardVarNames (GOr gs) = foldl union [] (map guardVarNames gs)
+guardVarNames Top = []
+guardVarNames Bottom = []
+
 
 disjunctionGuard :: [Guard] -> Guard
 disjunctionGuard (g:[]) = g
