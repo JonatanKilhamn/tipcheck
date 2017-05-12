@@ -21,7 +21,7 @@ import qualified Data.Set as S
 
 
 fileName :: FilePath
-fileName = "Examples/FMACAD2017/PME.wmod"
+fileName = "Examples/FMCAD2017/PME.wmod"
 
 pmeSynch :: IO Synchronisation
 pmeSynch = readWmodFile fileName
