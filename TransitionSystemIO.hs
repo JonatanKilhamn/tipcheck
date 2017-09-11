@@ -15,8 +15,7 @@ import GHC.Enum
 import GHC.Exts
 import Control.Monad.Writer
 
--- for testing only
---import TestAut3
+
 import PhilosophersParsed
 import CatMouseParsed
 import PMEParsed
@@ -104,6 +103,12 @@ isNegative (NOut x) = not (isNegative x)
 
 
 
+main :: IO Synchronisation
+main = do
+  s <- philSynch -- EDP
+  -- s <- cmtSynch -- CMT
+  -- s <- pmeSynch -- PME
+  updateSynch s outputFile
 
 
 ---- reading the input
