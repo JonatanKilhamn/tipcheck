@@ -1,0 +1,1648 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="yes"?>
+<Module Name="EDP5_10" xmlns="http://waters.sourceforge.net/xsd/module" xmlns:ns2="http://waters.sourceforge.net/xsd/base" xmlns:ns3="http://waters.sourceforge.net/xsd/des">
+    <ns2:Comment>Extended Dining Philosophers (parameters: n = # philosophers, k = #  intermediate states of each philosopher). 
+Consider the dining philosophers problem where the number of intermediates states (after taking the fork on the left and before taking the fork on the right) may vary. This means that each philosopher, from the idles state takes the fork on his left reaching intermediate state 1, executes k-1 intermediate events reaching intermediate state k, takes his right fork entering a state where he eats, and when he is done goes back to the idle state. The uncontrollable events are "philosopher i takes the left fork" for i even. There are n philosophers around the table. Design a maximally permissive nonblocking supervisor.</ns2:Comment>
+    <EventDeclList>
+        <EventDecl Kind="PROPOSITION" Name=":accepting"/>
+        <EventDecl Kind="PROPOSITION" Name=":forbidden"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate1"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate2"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate3"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate4"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate5"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate6"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate7"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate8"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate9"/>
+        <EventDecl Kind="CONTROLLABLE" Name="intermediate10"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put1"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put2"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put3"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put4"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put5"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put6"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put7"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put8"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put9"/>
+        <EventDecl Kind="CONTROLLABLE" Name="put10"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take1:1"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take1:2"/>
+        <EventDecl Kind="UNCONTROLLABLE" Name="take2:2"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take2:3"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take3:3"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take3:4"/>
+        <EventDecl Kind="UNCONTROLLABLE" Name="take4:4"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take4:5"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take5:6"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take5:5"/>
+        <EventDecl Kind="UNCONTROLLABLE" Name="take6:6"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take6:7"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take7:7"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take7:8"/>
+        <EventDecl Kind="UNCONTROLLABLE" Name="take8:8"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take8:9"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take9:9"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take9:10"/>
+        <EventDecl Kind="UNCONTROLLABLE" Name="take10:10"/>
+        <EventDecl Kind="CONTROLLABLE" Name="take10:1"/>
+    </EventDeclList>
+    <ComponentList>
+        <SimpleComponent Kind="SPEC" Name="Fork:1">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1">
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take1:1"/>
+                            <SimpleIdentifier Name="take10:1"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="96" Y="80"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put1"/>
+                            <SimpleIdentifier Name="put10"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="80" Y="96"/>
+                        </SplineGeometry>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:3">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="57" Y="56"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="1">
+                        <PointGeometry>
+                            <Point X="121" Y="117"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take2:3"/>
+                            <SimpleIdentifier Name="take3:3"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="81" Y="95"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put2"/>
+                            <SimpleIdentifier Name="put3"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="97" Y="78"/>
+                        </SplineGeometry>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:2">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1"/>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take1:2"/>
+                            <SimpleIdentifier Name="take2:2"/>
+                        </LabelBlock>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put1"/>
+                            <SimpleIdentifier Name="put2"/>
+                        </LabelBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:5">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1"/>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take4:5"/>
+                            <SimpleIdentifier Name="take5:5"/>
+                        </LabelBlock>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put4"/>
+                            <SimpleIdentifier Name="put5"/>
+                        </LabelBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:4">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1"/>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take3:4"/>
+                            <SimpleIdentifier Name="take4:4"/>
+                        </LabelBlock>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put3"/>
+                            <SimpleIdentifier Name="put4"/>
+                        </LabelBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:6">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1">
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take6:6"/>
+                            <SimpleIdentifier Name="take5:6"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="96" Y="80"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put6"/>
+                            <SimpleIdentifier Name="put5"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="80" Y="96"/>
+                        </SplineGeometry>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:7">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1">
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take7:7"/>
+                            <SimpleIdentifier Name="take6:7"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="96" Y="80"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put7"/>
+                            <SimpleIdentifier Name="put6"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="80" Y="96"/>
+                        </SplineGeometry>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:8">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1">
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take8:8"/>
+                            <SimpleIdentifier Name="take7:8"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="96" Y="80"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put8"/>
+                            <SimpleIdentifier Name="put7"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="80" Y="96"/>
+                        </SplineGeometry>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:9">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1">
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take9:9"/>
+                            <SimpleIdentifier Name="take8:9"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="96" Y="80"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put9"/>
+                            <SimpleIdentifier Name="put8"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="80" Y="96"/>
+                        </SplineGeometry>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="SPEC" Name="Fork:10">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Initial="true" Name="0">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                    </SimpleNode>
+                    <SimpleNode Name="1">
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="0" Target="1">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take10:10"/>
+                            <SimpleIdentifier Name="take9:10"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="96" Y="80"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="1" Target="0">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put10"/>
+                            <SimpleIdentifier Name="put9"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="80" Y="96"/>
+                        </SplineGeometry>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:1">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="240" Y="53"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="2" Y="12"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="76" Y="146"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="145" Y="77"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put1"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-12" Y="-31"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="191" Y="59"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take1:1"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="107" Y="107"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take1:2"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="23" Y="0"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="193" Y="128"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p1 == 9">
+                                    <SimpleIdentifier Name="p1"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p1 = 0">
+                                    <SimpleIdentifier Name="p1"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-47" Y="16"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate1"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="44" Y="-23"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="66" Y="240"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p1 &lt; 9">
+                                    <SimpleIdentifier Name="p1"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p1 += 1">
+                                    <SimpleIdentifier Name="p1"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-29" Y="4"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p1">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p1"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:2">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="188" Y="58"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="56" Y="193"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="103" Y="107"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put2"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="142" Y="78"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take2:2"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="75" Y="147"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take2:3"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="202" Y="192"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p2 == 9">
+                                    <SimpleIdentifier Name="p2"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p2 = 0">
+                                    <SimpleIdentifier Name="p2"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="1" Y="30"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate2"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="52" Y="277"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p2 &lt; 9">
+                                    <SimpleIdentifier Name="p2"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p2 += 1">
+                                    <SimpleIdentifier Name="p2"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="1" Y="28"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p2">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p2"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:3">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="86" Y="131"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="259" Y="55"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="162" Y="69"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put3"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="120" Y="96"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take3:3"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="209" Y="56"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take3:4"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="214" Y="163"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p3 == 9">
+                                    <SimpleIdentifier Name="p3"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p3 = 0">
+                                    <SimpleIdentifier Name="p3"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="24"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate3"/>
+                        </LabelBlock>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p3 &lt; 9">
+                                    <SimpleIdentifier Name="p3"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p3 += 1">
+                                    <SimpleIdentifier Name="p3"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="32"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p3">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p3"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:4">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="288" Y="62"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="105" Y="110"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="189" Y="61"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put4"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="238" Y="56"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take4:4"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="144" Y="80"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take4:5"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="220" Y="136"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p4 == 9">
+                                    <SimpleIdentifier Name="p4"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p4 = 0">
+                                    <SimpleIdentifier Name="p4"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="25"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate4"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-25" Y="11"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="109" Y="204"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p4 &lt; 9">
+                                    <SimpleIdentifier Name="p4"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p4 += 1">
+                                    <SimpleIdentifier Name="p4"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-23" Y="32"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p4">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p4"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:5">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="53" Y="233"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="151" Y="72"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="80" Y="139"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put5"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="61" Y="184"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take5:5"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="112" Y="101"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take5:6"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="179" Y="189"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p5 == 9">
+                                    <SimpleIdentifier Name="p5"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p5 = 0">
+                                    <SimpleIdentifier Name="p5"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="24"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate5"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="-11"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="270" Y="68"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p5 &lt; 9">
+                                    <SimpleIdentifier Name="p5"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p5 += 1">
+                                    <SimpleIdentifier Name="p5"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-3" Y="8"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p5">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p5"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:6">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="53" Y="233"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="151" Y="72"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="80" Y="139"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put6"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="61" Y="184"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take6:6"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="112" Y="101"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take6:7"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="179" Y="189"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p6 == 9">
+                                    <SimpleIdentifier Name="p6"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p6 = 0">
+                                    <SimpleIdentifier Name="p6"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="24"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate6"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="-11"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="270" Y="68"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p6 &lt; 9">
+                                    <SimpleIdentifier Name="p6"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p6 += 1">
+                                    <SimpleIdentifier Name="p6"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-3" Y="8"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p6">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p6"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:7">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="53" Y="233"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="151" Y="72"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="80" Y="139"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put7"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="61" Y="184"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take7:7"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="112" Y="101"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take7:8"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="179" Y="189"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p7 == 9">
+                                    <SimpleIdentifier Name="p7"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p7 = 0">
+                                    <SimpleIdentifier Name="p7"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="24"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate7"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="-11"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="270" Y="68"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p7 &lt; 9">
+                                    <SimpleIdentifier Name="p7"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p7 += 1">
+                                    <SimpleIdentifier Name="p7"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-3" Y="8"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p7">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p7"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:8">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="53" Y="233"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="151" Y="72"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="80" Y="139"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put8"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="61" Y="184"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take8:8"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="112" Y="101"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take8:9"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="179" Y="189"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p8 == 9">
+                                    <SimpleIdentifier Name="p8"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p8 = 0">
+                                    <SimpleIdentifier Name="p8"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="24"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate8"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="-11"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="270" Y="68"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p8 &lt; 9">
+                                    <SimpleIdentifier Name="p8"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p8 += 1">
+                                    <SimpleIdentifier Name="p8"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-3" Y="8"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p8">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p8"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:9">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="53" Y="233"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="151" Y="72"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="80" Y="139"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put9"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="61" Y="184"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take9:9"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="112" Y="101"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take9:10"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="179" Y="189"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p9 == 9">
+                                    <SimpleIdentifier Name="p9"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p9 = 0">
+                                    <SimpleIdentifier Name="p9"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="24"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate9"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="-11"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="270" Y="68"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p9 &lt; 9">
+                                    <SimpleIdentifier Name="p9"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p9 += 1">
+                                    <SimpleIdentifier Name="p9"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-3" Y="8"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p9">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p9"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+        <SimpleComponent Kind="PLANT" Name="Philo:10">
+            <Graph>
+                <NodeList>
+                    <SimpleNode Name="eat">
+                        <PointGeometry>
+                            <Point X="53" Y="233"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Name="lu">
+                        <PointGeometry>
+                            <Point X="151" Y="72"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                    <SimpleNode Initial="true" Name="think">
+                        <EventList>
+                            <SimpleIdentifier Name=":accepting"/>
+                        </EventList>
+                        <PointGeometry>
+                            <Point X="80" Y="139"/>
+                        </PointGeometry>
+                        <LabelGeometry Anchor="NW">
+                            <Point X="5" Y="5"/>
+                        </LabelGeometry>
+                    </SimpleNode>
+                </NodeList>
+                <EdgeList>
+                    <Edge Source="eat" Target="think">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="put10"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="61" Y="184"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="think" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take10:10"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="0" Y="10"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="112" Y="101"/>
+                        </SplineGeometry>
+                    </Edge>
+                    <Edge Source="lu" Target="eat">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="take10:1"/>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="179" Y="189"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="==" Text="p10 == 9">
+                                    <SimpleIdentifier Name="p10"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="=" Text="p10 = 0">
+                                    <SimpleIdentifier Name="p10"/>
+                                    <IntConstant Value="0"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="24"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                    <Edge Source="lu" Target="lu">
+                        <LabelBlock>
+                            <SimpleIdentifier Name="intermediate10"/>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-1" Y="-11"/>
+                            </LabelGeometry>
+                        </LabelBlock>
+                        <SplineGeometry>
+                            <Point X="270" Y="68"/>
+                        </SplineGeometry>
+                        <GuardActionBlock>
+                            <Guards>
+                                <BinaryExpression Operator="&lt;" Text="p10 &lt; 9">
+                                    <SimpleIdentifier Name="p10"/>
+                                    <IntConstant Value="9"/>
+                                </BinaryExpression>
+                            </Guards>
+                            <Actions>
+                                <BinaryExpression Operator="+=" Text="p10 += 1">
+                                    <SimpleIdentifier Name="p10"/>
+                                    <IntConstant Value="1"/>
+                                </BinaryExpression>
+                            </Actions>
+                            <LabelGeometry Anchor="NW">
+                                <Point X="-3" Y="8"/>
+                            </LabelGeometry>
+                        </GuardActionBlock>
+                    </Edge>
+                </EdgeList>
+            </Graph>
+        </SimpleComponent>
+        <VariableComponent Name="p10">
+            <VariableRange>
+                <BinaryExpression Operator="..">
+                    <IntConstant Value="0"/>
+                    <IntConstant Value="9"/>
+                </BinaryExpression>
+            </VariableRange>
+            <VariableInitial>
+                <BinaryExpression Operator="==">
+                    <SimpleIdentifier Name="p10"/>
+                    <IntConstant Value="0"/>
+                </BinaryExpression>
+            </VariableInitial>
+        </VariableComponent>
+    </ComponentList>
+</Module>
